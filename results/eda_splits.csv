@@ -1,0 +1,4 @@
+split,images,boxes,background_images,single_class_images_pct,boxes_per_image_mean,boxes_per_image_max,classes_present,box_area_median_pct
+train,11867,12008,0,100.0,1.01,5,110,41.5
+valid,1123,1139,0,99.9,1.01,7,110,39.0
+test,567,574,0,100.0,1.01,4,110,39.3
