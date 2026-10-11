@@ -127,8 +127,10 @@ def train_info(weights: str | Path, run_dir: str | Path | None = None) -> dict:
         out["epochs_run"] = int(len(df))
         if "metrics/mAP50-95(B)" in df:
             out["best_epoch_map50_95"] = int(df["metrics/mAP50-95(B)"].idxmax()) + 1
-        if "time" in df:
-            out["train_time_min"] = round(float(df["time"].iloc[-1]) / 60, 1)
+        if "time" in df:  # 'time' restarts from 0 after a resume: add up the segments
+            t = df["time"].astype(float)
+            d = t.diff()
+            out["train_time_min"] = round(float(d.where(d > 0, t).fillna(t.iloc[0]).sum()) / 60, 1)
     return out
 
 
@@ -214,8 +216,9 @@ def detection_metrics(weights, data_yaml, names, split="test", imgsz=640,
 
 
 def box_confusions(cm: pd.DataFrame, k=10) -> pd.DataFrame:
-    """Top-k off-diagonal (true -> predicted) box pairs from the conf=0.25 matrix,
-    plus missed boxes (true -> background) and background FPs, as counts."""
+    """Top-k class swaps (true -> predicted, off-diagonal, background excluded) from the
+    conf=0.25 box-level matrix. Missed / extra boxes are counted in box_errors instead."""
+    cm = cm.drop(index="background", columns="background", errors="ignore")
     rows = []
     for pred in cm.index:
         for true in cm.columns:
@@ -223,7 +226,8 @@ def box_confusions(cm: pd.DataFrame, k=10) -> pd.DataFrame:
             if n and pred != true:
                 rows.append({"true": true, "pred": pred, "count": n})
     df = pd.DataFrame(rows, columns=["true", "pred", "count"])
-    return df.sort_values("count", ascending=False).head(k).reset_index(drop=True)
+    df = df.sort_values(["count", "true", "pred"], ascending=[False, True, True], kind="stable")
+    return df.head(k).reset_index(drop=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -336,30 +340,41 @@ def top_confusions(y_true, y_pred, names, k=10) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 def box_errors(rec, iou_thr=MATCH_IOU) -> dict:
     """Greedy (by confidence) matching of predictions (conf >= 0.25) to GT boxes.
-    Each prediction becomes TP, WRONG_CLASS (IoU >= thr with another class),
-    POOR_LOC (same class, 0.1 <= IoU < thr) or BG (no overlap); unmatched GT = MISSED."""
+    Each prediction becomes
+      TP          same class, IoU >= thr with a GT not matched yet
+      WRONG_CLASS IoU >= thr with an unmatched GT of another class
+      DUPLICATE   IoU >= thr only with a GT that is already matched (extra box on a found product)
+      POOR_LOC    overlaps some GT with 0.1 <= IoU < thr
+      BG          IoU < 0.1 with every GT (box on background)
+    GT boxes never matched as TP are MISSED."""
     gts = [_gt_xyxy(g) for g in rec["gt_boxes"]]
     gcls = [int(g[0]) for g in rec["gt_boxes"]]
     used = [False] * len(gts)
     tags = []
     for c, cf, *xy in rec["pred_boxes"]:
-        ious = [(_iou(xy, g), j) for j, g in enumerate(gts) if not used[j]]
-        best, j = max(ious) if ious else (0.0, -1)
-        same = [(_iou(xy, gts[k]), k) for k in range(len(gts)) if gcls[k] == c and not used[k]]
+        ious = [_iou(xy, g) for g in gts]
+        same = [(ious[k], k) for k in range(len(gts)) if gcls[k] == c and not used[k]]
+        other = [ious[k] for k in range(len(gts)) if gcls[k] != c and not used[k]]
         best_same, js = max(same) if same else (0.0, -1)
+        best_all = max(ious) if ious else 0.0
         if best_same >= iou_thr:
             used[js] = True
             tags.append(("TP", best_same))
-        elif best >= iou_thr:
-            tags.append(("WRONG_CLASS", best))
-        elif best_same >= 0.1:
-            tags.append(("POOR_LOC", best_same))
+        elif other and max(other) >= iou_thr:
+            tags.append(("WRONG_CLASS", max(other)))
+        elif best_all >= iou_thr:
+            tags.append(("DUPLICATE", best_all))
+        elif best_all >= 0.1:
+            tags.append(("POOR_LOC", best_all))
         else:
-            tags.append(("BG", best))
+            tags.append(("BG", best_all))
     cnt = Counter(t for t, _ in tags)
     return {"tp": cnt["TP"], "missed": used.count(False), "wrong_class": cnt["WRONG_CLASS"],
-            "poor_loc": cnt["POOR_LOC"], "bg_fp": cnt["BG"], "pred_tags": tags,
-            "gt_found": used}
+            "duplicate": cnt["DUPLICATE"], "poor_loc": cnt["POOR_LOC"], "bg_fp": cnt["BG"],
+            "pred_tags": tags, "gt_found": used}
+
+
+ERR_KEYS = ("tp", "missed", "wrong_class", "duplicate", "poor_loc", "bg_fp")
 
 
 def box_error_table(records) -> pd.DataFrame:
@@ -368,7 +383,7 @@ def box_error_table(records) -> pd.DataFrame:
         e = box_errors(r)
         r["_err"] = e
         rows.append({"image": r["image"], "y_true": r["y_true"], "n_gt": r["n_gt"],
-                     **{k: e[k] for k in ("tp", "missed", "wrong_class", "poor_loc", "bg_fp")}})
+                     **{k: e[k] for k in ERR_KEYS}})
     return pd.DataFrame(rows)
 
 
@@ -376,7 +391,8 @@ def box_error_summary(df: pd.DataFrame) -> dict:
     single, multi = df[df.n_gt == 1], df[df.n_gt > 1]
     rec = lambda d: round(float(d.tp.sum() / max(d.n_gt.sum(), 1)), 4)  # noqa: E731
     return {"gt_boxes": int(df.n_gt.sum()), "tp": int(df.tp.sum()), "missed": int(df.missed.sum()),
-            "wrong_class": int(df.wrong_class.sum()), "poor_loc": int(df.poor_loc.sum()),
+            "wrong_class": int(df.wrong_class.sum()), "duplicate": int(df.duplicate.sum()),
+            "poor_loc": int(df.poor_loc.sum()),
             "bg_fp": int(df.bg_fp.sum()),
             "box_recall_single_item_imgs": rec(single), "box_recall_multi_item_imgs": rec(multi),
             "n_multi_item_imgs": int(len(multi))}
@@ -415,7 +431,7 @@ def _draw_record(ax, rec, names, all_preds=True, show_tags=False, max_preds=6):
     ax.axis("off")
 
 
-SHORT = {"TP": "TP", "WRONG_CLASS": "WRONG", "POOR_LOC": "LOC", "BG": "BG"}
+SHORT = {"TP": "TP", "WRONG_CLASS": "WRONG", "DUPLICATE": "DUP", "POOR_LOC": "LOC", "BG": "BG"}
 
 
 def _grid(n):
@@ -453,9 +469,8 @@ def plot_box_errors(records, names, out_path, n=8, title=""):
     """Images with the most box-level errors at conf >= 0.25 / IoU >= 0.5, every GT and
     every prediction drawn and tagged (TP, WRONG_CLASS, POOR_LOC, BG, MISSED)."""
     errs = [r for r in records if r.get("_err") and r["y_true"] >= 0 and
-            (r["_err"]["missed"] + r["_err"]["wrong_class"] + r["_err"]["poor_loc"] + r["_err"]["bg_fp"])]
-    errs.sort(key=lambda r: -(r["_err"]["missed"] + r["_err"]["wrong_class"]
-                              + r["_err"]["poor_loc"] + r["_err"]["bg_fp"]))
+            sum(r["_err"][k] for k in ERR_KEYS[1:])]
+    errs.sort(key=lambda r: -sum(r["_err"][k] for k in ERR_KEYS[1:]))
     pick = errs[:n]
     rows, cols = _grid(len(pick))
     fig, axes = plt.subplots(rows, cols, figsize=(4.2 * cols, 5.0 * rows), squeeze=False,
@@ -468,13 +483,13 @@ def plot_box_errors(records, names, out_path, n=8, title=""):
         more = len(rec["pred_boxes"]) - 6
         ax.set_title(f"GT: {names[rec['y_true']]} ({rec['n_gt']} box)\n"
                      f"TP {e['tp']} · miss {e['missed']} · wrong {e['wrong_class']} · "
-                     f"loc {e['poor_loc']} · bg {e['bg_fp']}" + (f" (+{more} not drawn)" if more > 0 else ""),
+                     f"dup {e['duplicate']} · loc {e['poor_loc']} · bg {e['bg_fp']}" + (f" (+{more} not drawn)" if more > 0 else ""),
                      fontsize=8.5, color=PRED_COLOR)
     if not pick:
         axes[0, 0].text(0.5, 0.5, "no box-level errors", ha="center", transform=axes[0, 0].transAxes)
     fig.suptitle(f"{title} ({len(pick)} of {len(errs)} images with errors)\n"
-                 "IoU after each label; TP / WRONG = other class / LOC = IoU < 0.5 / BG = no GT; "
-                 "dotted green = missed GT", fontsize=10)
+                 "IoU after each label: TP / WRONG = other class / DUP = extra box on a found product / "
+                 "LOC = IoU 0.1-0.5 / BG = no GT nearby; dotted green = missed GT", fontsize=10)
     fig.savefig(out_path, pil_kwargs={"quality": 85})
     plt.close(fig)
 
@@ -596,7 +611,8 @@ def plot_worst_classes(per_class: dict, out_path, k=K_HARDEST):
     for i, m in enumerate(names):
         ax.scatter(ap.loc[cls, m].values, y, s=120 if i == 0 else 50, color=model_color(m, i),
                    zorder=3 + i, edgecolor="white", linewidth=1.5, label=m)
-    labels = [f"{c} (n={int(nimg[c])})" if nimg is not None and c in nimg else c for c in cls]
+    labels = [f"{c} (n={int(nimg[c])})" if nimg is not None and c in nimg and pd.notna(nimg[c]) else c
+              for c in cls]
     ax.set_yticks(y)
     ax.set_yticklabels(labels, fontsize=8.5)
     ax.invert_yaxis()
@@ -751,6 +767,7 @@ def evaluate_all(weights: dict, data_yaml, out_dir="results", split="test", imgs
         nbox = Counter(int(g[0]) for r in recs for g in r["gt_boxes"])
         pc = det.pop("per_class").merge(img_cls, on="class", how="left")
         pc.insert(1, "n_boxes", [nbox.get(names.index(c), 0) for c in pc["class"]])
+        pc["n_images"] = pc["n_images"].fillna(0).astype(int)  # class never the majority of an image
         pc.to_csv(out / f"per_class_{name}.csv", index=False)
         per_class[name] = pc
         cf = top_confusions(y_t, y_p, names)
@@ -761,7 +778,7 @@ def evaluate_all(weights: dict, data_yaml, out_dir="results", split="test", imgs
             cm.to_csv(out / f"confusion_matrix_conf{DECISION_CONF}_{name}.csv")
             bc = box_confusions(cm)
             bc.to_csv(out / f"box_confusions_{name}.csv", index=False)
-            bconfs[name] = bc[(bc.true != "background") & (bc.pred != "background")]
+            bconfs[name] = bc
         berr.to_csv(out / f"box_errors_{name}.csv", index=False)
         fpr, tpr = roc_points(y_t, scores)
         curves[name] = (fpr, tpr, img["auc_micro"], img["auc_macro_ovr"])
@@ -814,9 +831,7 @@ def evaluate_all(weights: dict, data_yaml, out_dir="results", split="test", imgs
     if bconfs and not plot_confusions(bconfs, out / "box_confusions.png",
                                       title=f"box-level class swaps at conf {DECISION_CONF}"):
         (out / "box_confusions.png").unlink(missing_ok=True)
-    replot(out)
-    if train_dirs:
-        plot_training_curves(train_dirs, out / "training_curves.png")
+    replot(out)  # also draws training_curves.png from the copied <model>_results.csv, if any
 
     # where do the two models disagree?
     if len(preds) == 2:

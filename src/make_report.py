@@ -6,7 +6,7 @@ Run after evaluate.py (the notebook does this for you):
 
 Only the text between the ``<!-- AUTO:<name>:START -->`` / ``<!-- AUTO:<name>:END -->``
 markers is replaced, so the hand-written analysis stays untouched. Differences of 0-1
-metrics are written in percentage points (pp): 0.969 -> 0.977 = +0.76 pp.
+metrics are written in percentage points (pp): 0.9693 -> 0.9769 = +0.76 pp.
 """
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ def paired_tests(res: Path, a: str, b: str) -> dict:
         rng = np.random.default_rng(0)
         boots = [d.values[rng.integers(0, len(d), len(d))].mean() for _ in range(5000)]
         out[col] = {"better": better, "worse": worse, "equal": int((d == 0).sum()),
-                    "mean_pp": 100 * d.mean(),
+                    "n": int(len(d)), "mean_pp": 100 * d.mean(),
                     "ci_pp": tuple(100 * np.percentile(boots, [2.5, 97.5])),
                     "wilcoxon_p": float(stats.wilcoxon(pb[col], pa[col]).pvalue) if (d != 0).any() else 1.0,
                     "sign_p": float(stats.binomtest(better, better + worse).pvalue) if better + worse else 1.0}
@@ -127,12 +127,14 @@ def findings(res: Path, df: pd.DataFrame) -> str:
         t = paired_tests(res, small, big)
         if t:
             r, r50 = t["ap50_95"], t["ap50"]
+            verdict = "ไม่ต่างกัน" if r50["wilcoxon_p"] >= 0.05 else (
+                f"{big} ดีกว่า" if r50["mean_pp"] > 0 else f"{small} ดีกว่า")
             lines.append(
-                f"- ทดสอบแบบจับคู่รายคลาส (110 คลาส, test set และ checkpoint ชุดนี้): AP50-95 {big} ดีกว่า "
+                f"- ทดสอบแบบจับคู่รายคลาส ({r['n']} คลาส, test set และ checkpoint ชุดนี้): AP50-95 {big} ดีกว่า "
                 f"{r['better']} / แย่กว่า {r['worse']} / เท่ากัน {r['equal']} คลาส, Wilcoxon p = {r['wilcoxon_p']:.4f}, "
                 f"sign test p = {r['sign_p']:.4f}, bootstrap 95% CI ของค่าเฉลี่ย {r['ci_pp'][0]:+.2f} ถึง "
                 f"{r['ci_pp'][1]:+.2f} pp · AP50: {r50['better']}/{r50['worse']}/{r50['equal']}, "
-                f"Wilcoxon p = {r50['wilcoxon_p']:.2f} (ไม่ต่างกัน)")
+                f"Wilcoxon p = {r50['wilcoxon_p']:.2f} ({verdict})")
         lines.append(f"- รูปที่ไม่มีกล่องไหน conf >= 0.25 (no detection): {small} "
                      f"{100 * a.no_detection_rate:.2f}%, {big} {100 * b.no_detection_rate:.2f}%")
     dis = res / "disagreement.json"
@@ -165,8 +167,8 @@ def confusion_section(res: Path, models) -> str:
         f = res / f"box_confusions_{m}.csv"
         if f.exists():
             t = pd.read_csv(f)
-            out.append(f"**{m}** – ระดับกล่องที่ conf ≥ 0.25 (จาก confusion matrix, "
-                       "background = กล่องที่หาไม่เจอหรือกล่องเกิน)\n\n"
+            out.append(f"**{m}** – class swap ระดับกล่องที่ conf ≥ 0.25 (จาก confusion matrix ครบ 110 คลาส, "
+                       "ไม่รวมกล่องที่หาไม่เจอ/กล่องเกิน ซึ่งอยู่ในตารางความผิดพลาดระดับกล่อง)\n\n"
                        + (simple_table(t) if len(t) else "_ไม่มี_"))
     return "\n\n".join(out)
 
@@ -205,8 +207,9 @@ def box_error_section(res: Path, models) -> str:
     if not rows:
         return ("_ยังไม่มีข้อมูล: ต้องรัน notebook ใหม่ (เฉพาะส่วนประเมิน) ด้วย src/evaluate.py เวอร์ชันนี้ "
                 "จึงจะได้ results/box_errors_<model>.csv และ examples_box_errors_<model>.jpg_")
-    return ("ความผิดพลาดระดับกล่องที่ conf ≥ 0.25 และ IoU ≥ 0.5 (missed = GT ที่ไม่มีกล่องถูกคลาสครอบ, "
-            "wrong = กล่องทับ GT แต่ผิดคลาส, loc = คลาสถูกแต่ IoU < 0.5, bg = กล่องเกินบนพื้นหลัง):\n\n"
+    return ("ความผิดพลาดระดับกล่องที่ conf ≥ 0.25 และ IoU ≥ 0.5 (missed = GT ที่ไม่มีกล่องคลาสเดียวกันครอบ, "
+            "wrong_class = กล่องทับ GT แต่ผิดคลาส, duplicate = กล่องซ้ำบนสินค้าที่เจอแล้ว, "
+            "poor_loc = ทับ GT แต่ IoU 0.1–0.5, bg_fp = กล่องบนพื้นหลัง):\n\n"
             + simple_table(pd.DataFrame(rows)))
 
 

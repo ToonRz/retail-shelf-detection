@@ -176,7 +176,7 @@ def plot_class_distribution(cls, out_path, col="train", k=10):
 
 
 SOURCE_RE = re.compile(r"^(?P<src>.+?)_(?:jpe?g|png|JPE?G|PNG)\.rf\.[0-9a-f]+$")
-FRAME_RE = re.compile(r"^IMG_(\d+)$")
+FRAME_RE = re.compile(r"^IMG_(\d+)(?:-\d+-)?$")  # IMG_2859 and Roboflow's copy name IMG_2859-1-
 
 
 def source_name(img_path: Path) -> str:
@@ -192,9 +192,13 @@ def near_duplicate_check(root: str | Path, out_dir: str | Path = "results", wind
     import pandas as pd
 
     root, out_dir = Path(root), Path(out_dir)
+    def key(src):  # IMG_2859-1- and IMG_2859 are the same frame
+        m = FRAME_RE.match(src)
+        return f"IMG_{int(m.group(1))}" if m else src
+
     train = {}
     for p in list_images(root / "train" / "images"):
-        train.setdefault(source_name(p), set()).add(image_label(read_labels(label_path(p))))
+        train.setdefault(key(source_name(p)), set()).add(image_label(read_labels(label_path(p))))
     rows = []
     for p in list_images(root / "test" / "images"):
         src, c = source_name(p), image_label(read_labels(label_path(p)))
@@ -203,11 +207,11 @@ def near_duplicate_check(root: str | Path, out_dir: str | Path = "results", wind
         if m:
             n = int(m.group(1))
             for d in range(1, window + 1):
-                if any(c in train.get(f"IMG_{n + s * d}", ()) for s in (-1, 1)):
+                if any(c in train.get(f"IMG_{n + sgn * d}", ()) for sgn in (-1, 1)):
                     nearest = d
                     break
         rows.append({"image": p.name, "source": src, "class_id": c, "burst_name": bool(m),
-                     "same_source_in_train": c in train.get(src, ()),
+                     "same_source_in_train": c in train.get(key(src), ()),
                      "nearest_train_frame": nearest})
     df = pd.DataFrame(rows)
     df.to_csv(out_dir / "near_duplicates.csv", index=False)
