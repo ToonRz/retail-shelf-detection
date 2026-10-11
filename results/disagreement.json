@@ -1,0 +1,6 @@
+{
+  "only_yolov8n_correct": 0,
+  "only_yolov8s_correct": 0,
+  "both_wrong": 1,
+  "both_correct": 566
+}

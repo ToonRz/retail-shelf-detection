@@ -1,0 +1,28 @@
+{
+  "model": "yolov8s",
+  "precision": 0.984,
+  "recall": 0.9874,
+  "f1": 0.9857,
+  "map50": 0.9839,
+  "map50_95": 0.9769,
+  "n_images": 567,
+  "accuracy": 0.9982,
+  "img_precision_macro": 1.0,
+  "img_recall_macro": 0.9982,
+  "img_f1_macro": 0.999,
+  "auc_macro_ovr": 1.0,
+  "auc_micro": 1.0,
+  "no_detection_rate": 0.0018,
+  "infer_ms_per_img": 14.6,
+  "e2e_ms_per_img": 16.61,
+  "fps": 60.2,
+  "weights_mb": 21.6,
+  "params_m": 11.18,
+  "gflops": 28.9,
+  "val_speed_ms": {
+    "preprocess": 1.82,
+    "inference": 11.4,
+    "loss": 0.0,
+    "postprocess": 1.79
+  }
+}

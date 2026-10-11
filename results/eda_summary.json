@@ -1,0 +1,56 @@
+{
+  "splits": [
+    {
+      "split": "train",
+      "images": 11867,
+      "boxes": 12008,
+      "background_images": 0,
+      "single_class_images_pct": 100.0,
+      "boxes_per_image_mean": 1.01,
+      "boxes_per_image_max": 5,
+      "classes_present": 110,
+      "box_area_median_pct": 41.5
+    },
+    {
+      "split": "valid",
+      "images": 1123,
+      "boxes": 1139,
+      "background_images": 0,
+      "single_class_images_pct": 99.9,
+      "boxes_per_image_mean": 1.01,
+      "boxes_per_image_max": 7,
+      "classes_present": 110,
+      "box_area_median_pct": 39.0
+    },
+    {
+      "split": "test",
+      "images": 567,
+      "boxes": 574,
+      "background_images": 0,
+      "single_class_images_pct": 100.0,
+      "boxes_per_image_mean": 1.01,
+      "boxes_per_image_max": 4,
+      "classes_present": 110,
+      "box_area_median_pct": 39.3
+    }
+  ],
+  "n_classes": 110,
+  "train_imbalance_ratio": 3.32,
+  "rarest_classes": {
+    "carada": 87,
+    "tipco-mulberry": 87,
+    "magic-farm-black-jelly": 87,
+    "kukuru": 81,
+    "magic-farm-coconut": 81
+  },
+  "most_common_classes": {
+    "jele-super-light-summer": 269,
+    "jele-light-mixed-fruit": 198,
+    "calpis-lacto-soda": 171,
+    "jele-beautie-blackcurrant": 147,
+    "jele-beautie-vitamin-c-200": 137
+  },
+  "image_sizes_sample": {
+    "640x640": 600
+  }
+}
