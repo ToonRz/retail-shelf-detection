@@ -1,0 +1,25 @@
+# --- data / weights / runs (never commit) ---
+datasets/
+runs/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.zip
+
+# --- secrets ---
+.env
+*.env
+roboflow_key*
+
+# --- python / jupyter ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# --- OS / IDE ---
+.DS_Store
+.vscode/
+.idea/
