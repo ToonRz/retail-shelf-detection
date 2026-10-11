@@ -6,6 +6,7 @@ https://universe.roboflow.com/o2o-minimart/sell-products
 from __future__ import annotations
 
 import os
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -137,6 +138,90 @@ def image_label(rows) -> int:
 
 # --------------------------------------------------------------------------- #
 # EDA
+def plot_class_distribution(cls, out_path, col="train", k=10):
+    """Horizontal bars of the k most and k least frequent classes (box counts in one split),
+    with the spread of the remaining classes stated in the title - 110 vertical tick
+    labels are unreadable."""
+    import matplotlib.pyplot as plt
+
+    from plotstyle import SERIES, TEXT_2
+
+    col = col if col in cls else cls.columns[0]
+    s = cls[col].sort_values(ascending=False)
+    if len(s) <= 2 * k + 1:  # few classes: show them all
+        show, mid = list(s.items()), s.iloc[0:0]
+    else:
+        top, bottom, mid = s.head(k), s.tail(k), s.iloc[k:-k]
+        show = list(top.items()) + [(None, None)] + list(bottom.items())
+    fig, ax = plt.subplots(figsize=(8.5, 0.3 * len(show) + 1.4))
+    y = list(range(len(show)))
+    for yy, (name, v) in zip(y, show):
+        if name is None:
+            ax.text(0, yy, f"... {len(mid)} classes with {mid.min()}-{mid.max()} boxes "
+                    f"(median {int(mid.median())}) ...", va="center", fontsize=9, color=TEXT_2)
+            continue
+        ax.barh(yy, v, color=SERIES[0], height=0.7)
+        ax.text(v, yy, f" {v}", va="center", fontsize=8, color=TEXT_2)
+    ax.set_yticks([yy for yy, (n, _) in zip(y, show) if n is not None])
+    ax.set_yticklabels([n for n, _ in show if n is not None], fontsize=8.5)
+    ax.invert_yaxis()
+    ax.grid(axis="y", visible=False)
+    imb = s.max() / max(s[s > 0].min(), 1)
+    ax.set(xlabel=f"bounding boxes in {col}",
+           title=f"Class distribution - {col} ({len(s)} classes, max/min = {imb:.1f}x)")
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
+    return imb
+
+
+SOURCE_RE = re.compile(r"^(?P<src>.+?)_(?:jpe?g|png|JPE?G|PNG)\.rf\.[0-9a-f]+$")
+FRAME_RE = re.compile(r"^IMG_(\d+)(?:-\d+-)?$")  # IMG_2859 and Roboflow's copy name IMG_2859-1-
+
+
+def source_name(img_path: Path) -> str:
+    """Roboflow renames x.jpg to x_jpg.rf.<hash>.jpg; return the original stem x."""
+    m = SOURCE_RE.match(Path(img_path).stem)
+    return m.group("src") if m else Path(img_path).stem
+
+
+def near_duplicate_check(root: str | Path, out_dir: str | Path = "results", window=3) -> dict:
+    """Leakage check from file names only: for every test photo named IMG_<n>, is there a
+    train photo of the same class named IMG_<n+-1..window> (a burst frame taken seconds
+    apart) or with the very same source name? Writes near_duplicates.csv."""
+    import pandas as pd
+
+    root, out_dir = Path(root), Path(out_dir)
+    def key(src):  # IMG_2859-1- and IMG_2859 are the same frame
+        m = FRAME_RE.match(src)
+        return f"IMG_{int(m.group(1))}" if m else src
+
+    train = {}
+    for p in list_images(root / "train" / "images"):
+        train.setdefault(key(source_name(p)), set()).add(image_label(read_labels(label_path(p))))
+    rows = []
+    for p in list_images(root / "test" / "images"):
+        src, c = source_name(p), image_label(read_labels(label_path(p)))
+        m = FRAME_RE.match(src)
+        nearest = None
+        if m:
+            n = int(m.group(1))
+            for d in range(1, window + 1):
+                if any(c in train.get(f"IMG_{n + sgn * d}", ()) for sgn in (-1, 1)):
+                    nearest = d
+                    break
+        rows.append({"image": p.name, "source": src, "class_id": c, "burst_name": bool(m),
+                     "same_source_in_train": c in train.get(key(src), ()),
+                     "nearest_train_frame": nearest})
+    df = pd.DataFrame(rows)
+    df.to_csv(out_dir / "near_duplicates.csv", index=False)
+    burst = df[df.burst_name]
+    return {"test_images": len(df), "burst_named": int(len(burst)),
+            "same_source_in_train": int(df.same_source_in_train.sum()),
+            f"train_frame_within_{window}": int(burst.nearest_train_frame.notna().sum()),
+            "train_frame_adjacent": int((burst.nearest_train_frame == 1).sum())}
+
+
 # --------------------------------------------------------------------------- #
 def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results") -> dict:
     """Images / boxes per split, class distribution, boxes per image, box size.
@@ -145,8 +230,6 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
     import pandas as pd
     import matplotlib.pyplot as plt
     from PIL import Image
-
-    from matplotlib.ticker import MaxNLocator
 
     from plotstyle import SERIES
 
@@ -161,16 +244,15 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
             continue
         imgs = list_images(img_dir)
         cc, nbox, areas, n_single = Counter(), [], [], 0
-        for i, p in enumerate(imgs):
+        for p in imgs:
             rows = read_labels(label_path(p))
             nbox.append(len(rows))
             n_single += len({r[0] for r in rows}) == 1
             for c, _, _, w, h in rows:
                 cc[c] += 1
                 areas.append(w * h)
-            if i < 200:  # sample image resolutions
-                with Image.open(p) as im:
-                    img_sizes[im.size] += 1
+            with Image.open(p) as im:  # reads the header only - cheap for every image
+                img_sizes[im.size] += 1
         class_counts[folder] = cc
         per_img[folder] = nbox
         box_area[folder] = areas
@@ -180,10 +262,12 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
             "boxes": int(sum(nbox)),
             "background_images": int(sum(n == 0 for n in nbox)),
             "single_class_images_pct": round(100 * n_single / max(len(imgs), 1), 1),
+            "multi_box_images": int(sum(n > 1 for n in nbox)),
             "boxes_per_image_mean": round(float(np.mean(nbox)) if nbox else 0, 2),
             "boxes_per_image_max": int(max(nbox)) if nbox else 0,
             "classes_present": len(cc),
             "box_area_median_pct": round(100 * float(np.median(areas)), 1) if areas else 0,
+            "unique_sources": len({source_name(p) for p in imgs}),
         })
 
     splits = pd.DataFrame(split_rows)
@@ -195,36 +279,27 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
     cls["total"] = cls.sum(axis=1)
     cls = cls.sort_values("total", ascending=False)
     cls.to_csv(out_dir / "eda_class_counts.csv")
+    imb = plot_class_distribution(cls, out_dir / "eda_class_distribution.png")
+    s = cls["train" if "train" in cls else cls.columns[0]].sort_values(ascending=False)
 
-    # -- class distribution (train) ----------------------------------------
-    col = "train" if "train" in cls else cls.columns[0]
-    s = cls[col].sort_values(ascending=False)
-    fig, ax = plt.subplots(figsize=(max(12, len(s) * 0.16), 4.5))
-    ax.bar(range(len(s)), s.values, color=SERIES[0], width=0.8)
-    ax.set_xticks(range(len(s)))
-    ax.set_xticklabels(s.index, rotation=90, fontsize=6)
-    ax.set_xlim(-0.6, len(s) - 0.4)
-    ax.set_ylabel("bounding boxes")
-    ax.grid(axis="x", visible=False)
-    imb = s.max() / max(s[s > 0].min(), 1)
-    ax.set_title(f"Class distribution - {col} split ({len(s)} classes, "
-                 f"max/min = {imb:.1f}x)")
-    fig.savefig(out_dir / "eda_class_distribution.png")
-    plt.close(fig)
-
-    # -- boxes per image + box size ------------------------------------------
+    # -- boxes per image (log scale: multi-box images are rare) + box size ----
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-    nb = per_img.get("train", next(iter(per_img.values())))
+    mx = max(max(v) for v in per_img.values())
+    bins = np.arange(0, mx + 1)
+    w = 0.8 / len(per_img)
+    for i, (folder, nb) in enumerate(per_img.items()):
+        cnt = np.bincount(nb, minlength=mx + 1)
+        axes[0].bar(bins + (i - (len(per_img) - 1) / 2) * w, cnt, w * 0.95, label=folder,
+                    color=SERIES[i % len(SERIES)])
+    axes[0].set_yscale("log")
+    axes[0].set(title="Boxes per image (log scale)", xlabel="boxes in image", ylabel="images",
+                xticks=bins)
+    axes[0].legend(fontsize=8)
     ar = box_area.get("train", next(iter(box_area.values())))
-    axes[0].hist(nb, bins=range(0, max(nb) + 2), color=SERIES[0], rwidth=0.85, align="left")
-    axes[0].set_title("Boxes per image (train)")
-    axes[0].set_xlabel("boxes in image")
-    axes[0].set_ylabel("images")
     axes[1].hist(np.array(ar) * 100, bins=40, color=SERIES[0], rwidth=0.9)
     axes[1].set_title("Box area as % of image (train)")
     axes[1].set_xlabel("% of image area")
     axes[1].set_ylabel("boxes")
-    axes[0].xaxis.set_major_locator(MaxNLocator(integer=True))
     for a in axes:
         a.grid(axis="x", visible=False)
     fig.tight_layout()
@@ -237,6 +312,10 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
         "train_imbalance_ratio": round(float(imb), 2),
         "rarest_classes": s[s > 0].tail(5).to_dict(),
         "most_common_classes": s.head(5).to_dict(),
-        "image_sizes_sample": {f"{w}x{h}": n for (w, h), n in img_sizes.most_common(5)},
+        "image_sizes": {f"{w}x{h}": n for (w, h), n in img_sizes.most_common(5)},
+        "images_checked_for_size": int(sum(img_sizes.values())),
+        "train_boxes_covering_97pct_of_frame": int(sum(a >= 0.97 for a in ar)),
     }
+    if (root / "test" / "images").is_dir() and (root / "train" / "images").is_dir():
+        summary["near_duplicates"] = near_duplicate_check(root, out_dir)
     return summary
