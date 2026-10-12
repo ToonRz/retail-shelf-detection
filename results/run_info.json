@@ -1,0 +1,9 @@
+{
+  "python": "3.13.16",
+  "timestamp_utc": "2026-10-12T02:54:44Z",
+  "torch": "2.11.0+cpu",
+  "ultralytics": "8.4.175",
+  "cuda": null,
+  "device": "cpu",
+  "git_commit": "a7d085c7793dcf4ee77245bccaadf60e27a3ad32"
+}

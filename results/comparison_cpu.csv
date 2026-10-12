@@ -1,0 +1,3 @@
+model,infer_ms_per_img,infer_ms_p90,e2e_ms_per_img,fps,device
+yolov8n,190.22,298.74,196.31,5.1,"cpu (Mac, run 3)"
+yolov8s,524.81,824.12,530.94,1.9,"cpu (Mac, run 3)"

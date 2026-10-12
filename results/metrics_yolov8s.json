@@ -5,6 +5,7 @@
   "f1": 0.9857,
   "map50": 0.9839,
   "map50_95": 0.9769,
+  "max_f1_conf": 0.794,
   "n_images": 567,
   "accuracy": 0.9982,
   "img_precision_macro": 1.0,
@@ -13,16 +14,48 @@
   "auc_macro_ovr": 1.0,
   "auc_micro": 1.0,
   "no_detection_rate": 0.0018,
+  "score_zero_frac": 0.9906,
   "infer_ms_per_img": 14.6,
+  "infer_ms_p90": 15.09,
   "e2e_ms_per_img": 16.61,
   "fps": 60.2,
   "weights_mb": 21.6,
   "params_m": 11.18,
   "gflops": 28.9,
-  "val_speed_ms": {
-    "preprocess": 1.82,
-    "inference": 11.4,
+  "box_errors": {
+    "gt_boxes": 574,
+    "tp": 565,
+    "missed": 9,
+    "wrong_class": 0,
+    "duplicate": 0,
+    "poor_loc": 2,
+    "bg_fp": 4,
+    "box_recall_single_item_imgs": 0.9929,
+    "box_recall_multi_item_imgs": 0.5455,
+    "n_multi_item_imgs": 4
+  },
+  "train": {
+    "optimizer": "AdamW",
+    "lr0": 8.8e-05,
+    "weight_decay": 0.0005,
+    "warmup_epochs": 3.0,
+    "amp": true,
+    "ultralytics_version_trained": "8.4.175",
+    "epochs_run": 25,
+    "best_epoch_map50_95": 25,
+    "train_time_min": 80.4
+  },
+  "speed_cpu": {
+    "infer_ms_per_img": 524.81,
+    "infer_ms_p90": 824.12,
+    "e2e_ms_per_img": 530.94,
+    "fps": 1.9
+  },
+  "val_speed_ms_cpu": {
+    "preprocess": 5.4,
+    "inference": 694.17,
     "loss": 0.0,
-    "postprocess": 1.79
-  }
+    "postprocess": 2.19
+  },
+  "speed_note": "speed fields = Colab GPU (run 1, 2026-10-11); speed_cpu = CPU eval run 3"
 }
