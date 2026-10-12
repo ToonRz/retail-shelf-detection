@@ -6,10 +6,12 @@
       "boxes": 12008,
       "background_images": 0,
       "single_class_images_pct": 100.0,
+      "multi_box_images": 81,
       "boxes_per_image_mean": 1.01,
       "boxes_per_image_max": 5,
       "classes_present": 110,
-      "box_area_median_pct": 41.5
+      "box_area_median_pct": 41.5,
+      "unique_sources": 2987
     },
     {
       "split": "valid",
@@ -17,10 +19,12 @@
       "boxes": 1139,
       "background_images": 0,
       "single_class_images_pct": 99.9,
+      "multi_box_images": 8,
       "boxes_per_image_mean": 1.01,
       "boxes_per_image_max": 7,
       "classes_present": 110,
-      "box_area_median_pct": 39.0
+      "box_area_median_pct": 39.0,
+      "unique_sources": 1040
     },
     {
       "split": "test",
@@ -28,10 +32,12 @@
       "boxes": 574,
       "background_images": 0,
       "single_class_images_pct": 100.0,
+      "multi_box_images": 4,
       "boxes_per_image_mean": 1.01,
       "boxes_per_image_max": 4,
       "classes_present": 110,
-      "box_area_median_pct": 39.3
+      "box_area_median_pct": 39.3,
+      "unique_sources": 558
     }
   ],
   "n_classes": 110,
@@ -50,7 +56,16 @@
     "jele-beautie-blackcurrant": 147,
     "jele-beautie-vitamin-c-200": 137
   },
-  "image_sizes_sample": {
-    "640x640": 600
+  "image_sizes": {
+    "640x640": 13557
+  },
+  "images_checked_for_size": 13557,
+  "train_boxes_covering_97pct_of_frame": 595,
+  "near_duplicates": {
+    "test_images": 567,
+    "burst_named": 533,
+    "same_source_in_train": 20,
+    "train_frame_within_3": 532,
+    "train_frame_adjacent": 481
   }
 }
