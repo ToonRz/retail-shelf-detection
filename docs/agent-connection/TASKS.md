@@ -5,10 +5,10 @@
 | งาน | Repo | ใคร | ต้องรออะไร |
 |---|---|---|---|
 | T0 โครงทั้งหมด + contract | ทั้ง 3 | ✅ ทำแล้ว | — |
-| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | T1–T3 เสร็จแล้ว · T4 รอ A + C1/C2 |
-| **A** inference ใน browser | retail-shelf-agent | เพื่อน A: _(ชื่อ)_ | ไม่ต้องรอ (ใช้ model COCO dev ไปก่อน) |
-| **B** หน้าเว็บ | retail-shelf-web | เพื่อน B: _(ชื่อ)_ | ไม่ต้องรอ (`agent.version = mock`) |
-| **C** release, bump, deploy | agent + web | เพื่อน C: _(ชื่อ)_ | ไม่ต้องรอ (ใช้ model COCO dev ไปก่อน) |
+| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | T1–T3 เสร็จ · T4 เหลือกดออก release `v0.1.0` |
+| **A** inference ใน browser | retail-shelf-agent | ✅ ทำแล้ว (2026-11-10) | — |
+| **B** หน้าเว็บ | retail-shelf-web | ✅ ทำแล้ว (2026-11-10) | — |
+| **C** release, bump, deploy | agent + web | ✅ ทำแล้ว (2026-11-10) | — |
 
 A, B, C แตะไฟล์คนละชุดกัน จึงทำพร้อมกันได้เลย ใครจะแก้ไฟล์ contract (§5 ของ spec) ต้องคุยกันก่อน
 
@@ -59,69 +59,71 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - ตรวจ: `npm run fetch-model` (sha256 ผ่าน), `npm run typecheck`, `npm test` (7/7) และ CI ของ agent ผ่าน · parity test บน `sell-v3` เป็นของงาน A4
 - [x] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
   - ✅ (2026-11-10) Pages เปิดแล้ว (`build_type: workflow`) · ส่ง invite สิทธิ์ write ให้ BoonyasakR, phichitphongpond, KXNBYV ทั้งใน agent และ web แล้ว (รอเพื่อนกด accept)
-- [ ] **T4** หลัง A + C1 + T2 เสร็จ: `git tag v0.1.0 && git push --tags` ใน agent → รอ release → ใน web รัน `make bump-agent ALLOW_MINOR=1` แล้วเปิด PR
-  - ⛔ ติดอยู่ (2026-11-10): `src/detect.ts` ยัง throw `not_implemented` (A1–A4), ยังไม่มี `release.yml` (C1) และ `make bump-agent` (C2) · T2 เสร็จแล้ว
-
+- [ ] **T4** ออก release แรก `v0.1.0` แล้ว bump เว็บ
+  - A, C1, C2, T2 เสร็จหมดแล้ว · ทดสอบ release `v0.1.0` ที่ package ในเครื่องกับเว็บใน Chromium แล้ว (WASM + WebGPU, ผลตรง `expected.json`)
+  - ⛔ ค้างที่ขั้นเดียว: session ของ Claude push tag / สั่งรัน release workflow ไม่ได้ → Toon ทำเอง:
+    - GitHub → retail-shelf-agent → Actions → **release** → Run workflow → version `v0.1.0` (หรือ `git tag v0.1.0 && git push origin v0.1.0`)
+    - แล้วใน web: `make bump-agent ALLOW_MINOR=1` → commit `agent.version` (= `v0.1.0`) → push / PR → Pages deploy เอง
 ---
 
 ## งาน A — inference ใน browser (retail-shelf-agent)
 
 แก้ `src/detect.ts` (และเพิ่มไฟล์ใน `src/` ได้) · ห้ามแก้ `load()` / `types.ts` โดยไม่คุยกัน · ทำตาม SPEC §6
 
-- [ ] **A1 `createSession`**
+- [x] **A1 `createSession`** ✅ `src/detect.ts` · release ส่งเฉพาะ `ort-wasm-simd-threaded.jsep.{wasm,mjs}` (~43 MB ทั้ง release) · ทดสอบใน Chromium แล้วทั้ง WebGPU และ WASM (ยังไม่ได้ลอง Safari/Firefox จริง)
   - ใช้ onnxruntime-web และตั้ง `ort.env.wasm.wasmPaths = baseUrl` (release เป็น flat)
   - ลอง `webgpu` ก่อน ถ้าไม่ได้ให้ใช้ `wasm` แล้วคืนค่า `backend` ที่ใช้จริง · ใช้ไม่ได้ทั้งคู่ → `AgentError("backend_unavailable")`
   - เลือกว่าจะส่งไฟล์ `ort-wasm-*` ชุดไหนจริง (ตอนนี้ copy ไปทั้ง 4 แบบ release เลยใหญ่ ~104 MB) แล้วแก้ filter ใน `scripts/package-release.mjs` ให้ test ยังผ่าน
   - ตรวจ: Chrome (WebGPU) และ Safari/Firefox (WASM) โหลด release dev ได้ และสถานะขึ้น backend ที่ถูกต้อง
-- [ ] **A2 preprocess** เป็นฟังก์ชันล้วน `letterbox(rgba, w, h) → { tensor, r, left, top }` ตาม SPEC §6.1
+- [x] **A2 preprocess** ✅ `src/preprocess.ts` (resize แบบ fixed-point เท่า cv2) · test เทียบค่าจาก Python ใน `test/preprocess.test.ts` เป็นฟังก์ชันล้วน `letterbox(rgba, w, h) → { tensor, r, left, top }` ตาม SPEC §6.1
   - ระวังการปัดเลข half-to-even และใช้ resize แบบ bilinear
   - ตรวจ: unit test ที่ขนาด 640×640 (ต้องไม่ resize), 810×1080 และ 1280×720 เทียบค่า `r/left/top` กับที่คำนวณด้วย Python
-- [ ] **A3 postprocess** เป็นฟังก์ชันล้วน `decode(output, C, opts, meta) → Box[]` ตาม SPEC §6.3 (argmax, conf >, NMS แยกตามคลาส, max_det, ถอด letterbox, clip)
+- [x] **A3 postprocess** ✅ `src/postprocess.ts` · ถอด letterbox แยก gain x/y แบบ `scale_boxes` ของ 8.4.208 · `test/postprocess.test.ts` เป็นฟังก์ชันล้วน `decode(output, C, opts, meta) → Box[]` ตาม SPEC §6.3 (argmax, conf >, NMS แยกตามคลาส, max_det, ถอด letterbox, clip)
   - ตรวจ: unit test ด้วย output ปลอม เช่น กล่องซ้อนกันคนละคลาสต้องไม่ถูกตัด, กล่องคลาสเดียวกันที่ IoU > iou ต้องถูกตัด
-- [ ] **A4 parity test** รัน `model.onnx` ใน vitest (เช่น `onnxruntime-node` + `jpeg-js` เป็น devDependency) กับ `test/fixtures/coco-dev/` เทียบกับ `expected.json` ตามเกณฑ์ SPEC §6.4
+- [x] **A4 parity test** ✅ `test/parity.test.ts` (onnxruntime-web wasm ใน node + jpeg-js) ผ่านบน `sell-v3` 16 รูป และ `coco-dev` 3 รูป · CI ผ่าน รัน `model.onnx` ใน vitest (เช่น `onnxruntime-node` + `jpeg-js` เป็น devDependency) กับ `test/fixtures/coco-dev/` เทียบกับ `expected.json` ตามเกณฑ์ SPEC §6.4
   - ตรวจ: ผ่านบน `coco-dev` ตอนนี้ และต้องผ่านบน `sell-v3` หลัง T2
-- [ ] **A5 วัดความเร็ว**: หน้า bench เล็ก ๆ หรือ script ที่จับ `latency_ms` เฉลี่ยของ 20 รูปบน WebGPU และ WASM ในเครื่องที่จะใช้พรีเซนต์ แล้วใส่ตัวเลขใน PR
+- [x] **A5 วัดความเร็ว** ✅ หน้า About ของเว็บ → "วัดความเร็วเครื่องนี้" (20 รูปต่อ backend) · ใน container ที่ทดสอบ: WASM เฉลี่ย 384 ms · ⚠️ ยังต้องกดวัดบนเครื่องที่จะใช้พรีเซนต์แล้วจดตัวเลข: หน้า bench เล็ก ๆ หรือ script ที่จับ `latency_ms` เฉลี่ยของ 20 รูปบน WebGPU และ WASM ในเครื่องที่จะใช้พรีเซนต์ แล้วใส่ตัวเลขใน PR
 
 ## งาน B — หน้าเว็บ (retail-shelf-web)
 
 แก้ `index.html`, `src/main.ts` และเพิ่มไฟล์ UI ใน `src/` ได้ · เรียก agent ผ่าน `loadAgent()` ใน `src/agent.ts` เท่านั้น
 ใช้ `agent.version = mock` ไปก่อน · หน้าตาดูจากแท็บ "ทดลองตรวจจับ" ใน mock
 
-- [ ] **B1 input**
+- [x] **B1 input** ✅
   - อัปโหลดรูป และลากรูปมาวางได้
   - มีปุ่ม "ใช้รูปตัวอย่าง" (ใส่รูปไว้ใน `public/samples/` ใช้รูปจาก dataset ได้เพราะเป็น CC BY 4.0 แต่ต้องใส่ที่มา)
   - ถ่ายจากกล้องด้วย `getUserMedia` แล้วตรวจเฟรมนั้น
   - มีตัวเลือก backend (WebGPU / WASM)
-- [ ] **B2 ผลลัพธ์**
+- [x] **B2 ผลลัพธ์** ✅
   - วาดกล่องบน canvas ให้แต่ละคลาสมีสีของตัวเอง
   - ตารางนับจำนวนสินค้าแต่ละชนิด
   - บอกสินค้าที่มั่นใจที่สุด และ `latency_ms` + backend
   - slider ปรับ conf (ส่งเป็น `detect(img, { conf })`)
-- [ ] **B3 ระหว่างโหลดและตอนพัง**
+- [x] **B3 ระหว่างโหลดและตอนพัง** ✅ (`src/ui/logic.ts` `ERROR_TH`)
   - progress bar ตอนโหลด model (ใช้ `onProgress`)
   - ปิดปุ่มไว้จนกว่าจะโหลดเสร็จ
   - ข้อความภาษาไทยของแต่ละ `AgentErrorCode` (ดู `src/agent-contract.ts`) เช่น `version_mismatch` = "เวอร์ชัน agent ไม่ตรงกับที่เว็บ pin ไว้"
-- [ ] **B4 About + responsive**
+- [x] **B4 About + responsive** ✅
   - หน้า About: ตัวเลข mAP / ความเร็วจาก README ของ repo นี้, ลิงก์รายงาน, ที่มาของ dataset (CC BY 4.0) และ YOLOv8 (AGPL-3.0)
   - ใช้บนมือถือได้ และรองรับ dark mode
-- ตรวจ: screenshot บน desktop และมือถือแนบใน PR · `npm test` + `npm run build` ผ่าน · ลองกับ release dev จริงเมื่อ C2 เสร็จ
+- ตรวจ: screenshot อยู่ที่ `docs/screenshots/` ของ retail-shelf-web (desktop สว่าง, มือถือมืด, About) ถ่ายกับ release `v0.1.0` ที่ package ในเครื่อง · `npm test` + `npm run build` ผ่าน
 
 ## งาน C — release, bump, deploy (agent + web)
 
 ทำตาม SPEC §4, §7, §8 · ใช้ model COCO dev (`v0.0.x`) ทดสอบทั้งเส้นทาง
 
-- [ ] **C1 release workflow** (`retail-shelf-agent/.github/workflows/release.yml`) ทำงานเมื่อ push tag `v*.*.*`
+- [x] **C1 release workflow** ✅ `release.yml` (push tag หรือ Run workflow ใส่เวอร์ชัน) · ข้าม `v0.0.1` เพราะ lock เป็น model จริงแล้ว ใช้ `v0.1.0` (T4) เป็นรอบตรวจ (`retail-shelf-agent/.github/workflows/release.yml`) ทำงานเมื่อ push tag `v*.*.*`
   1. `npm ci` → `npm run typecheck` → `npm test` → `npm run build` → `npm run fetch-model`
   2. `npm run package -- --version $TAG` → `gh release create $TAG release/$TAG/*`
   - tag ที่ไม่ใช่ `vX.Y.Z` ต้องไม่ทำอะไรเลย
   - ตรวจ: push `v0.0.1` แล้วได้ release ที่ดาวน์โหลดมา `sha256sum -c SHA256SUMS` ผ่าน
-- [ ] **C2 bump + fetch** (`retail-shelf-web/scripts/` + `Makefile`): ทำ `make fetch-agent-release` และ `make bump-agent` ตาม SPEC §7
+- [x] **C2 bump + fetch** ✅ `scripts/agent-release.mjs` + `Makefile` · `test/agent-release.test.ts` ครบทุกข้อด้านล่าง · ลอง `make fetch-agent-release` กับ release v0.1.0 ในเครื่องแล้ว (`retail-shelf-web/scripts/` + `Makefile`): ทำ `make fetch-agent-release` และ `make bump-agent` ตาม SPEC §7
   - ตรวจด้วย test อัตโนมัติ (vitest หรือ bats) ที่ใช้โฟลเดอร์ release ปลอม (สร้างด้วย `package-release.mjs`) ครอบคลุม:
     - bump patch ผ่าน
     - ข้าม minor ถูกปฏิเสธถ้าไม่มี `ALLOW_MINOR=1`
     - ถอยเวอร์ชันถูกปฏิเสธ
     - SHA256SUMS ผิด / manifest ผิดเวอร์ชันถูกปฏิเสธ และ `agent.version` กลับเป็นค่าเดิม
-- [ ] **C3 Pages deploy** (`retail-shelf-web/.github/workflows/pages.yml`) ตาม SPEC §8 และ CI warning เมื่อ pin ตามหลัง patch ล่าสุด
+- [x] **C3 Pages deploy** ✅ `pages.yml` deploy แล้วตอน pin `mock` · CI ขึ้น warning เมื่อมี patch ใหม่กว่า pin (`make agent-lag`) (`retail-shelf-web/.github/workflows/pages.yml`) ตาม SPEC §8 และ CI warning เมื่อ pin ตามหลัง patch ล่าสุด
   - ตรวจ: เว็บขึ้นที่ `https://toonrz.github.io/retail-shelf-web/` ทั้งตอน pin เป็น `mock` และตอน pin `v0.0.1`
 
 ---
