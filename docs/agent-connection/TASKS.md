@@ -5,7 +5,7 @@
 | งาน | Repo | ใคร | ต้องรออะไร |
 |---|---|---|---|
 | T0 โครงทั้งหมด + contract | ทั้ง 3 | ✅ ทำแล้ว | — |
-| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | best.pt จาก Drive |
+| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | T1–T3 เสร็จแล้ว · T4 รอ A + C1/C2 |
 | **A** inference ใน browser | retail-shelf-agent | เพื่อน A: _(ชื่อ)_ | ไม่ต้องรอ (ใช้ model COCO dev ไปก่อน) |
 | **B** หน้าเว็บ | retail-shelf-web | เพื่อน B: _(ชื่อ)_ | ไม่ต้องรอ (`agent.version = mock`) |
 | **C** release, bump, deploy | agent + web | เพื่อน C: _(ชื่อ)_ | ไม่ต้องรอ (ใช้ model COCO dev ไปก่อน) |
@@ -43,33 +43,24 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
 
 ## งานของ Toon
 
-- [ ] **T1** อัปโหลด weights: `gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection`
-  (ไฟล์ best.pt จาก `MyDrive/retail-shelf-detection/runs/detect/<model>/weights/`) ทำให้ Streamlit app ใช้ได้ด้วย
-  - ⛔ ติดอยู่ (2026-11-10): ไม่มี `best.pt` ในเครื่อง (ไม่มี Drive mount, ไม่อยู่ใน `~/Downloads`/`~/Documents`) ต้อง login Google Drive หรือดาวน์โหลดมาวางที่ `weights/` ก่อน
-  - ⛔ ยังติด (2026-11-10, รอบ 2): เจอไฟล์ใน Drive ที่แชร์มาแล้ว (`runs/detect/yolov8n/weights/best.pt` 6.5 MB, `runs/detect/yolov8s/weights/best.pt` 22.6 MB) แต่ Google Drive connector ดาวน์โหลด binary ขนาดนี้ไม่ได้ (ผลลัพธ์ใหญ่เกิน connector ตัดการเชื่อมต่อ) · ยังไม่มี release `weights-v1` · ทางไป: ดาวน์โหลด best.pt มาวางที่ `weights/` เอง แล้วรันคำสั่งด้านล่าง
-- [ ] **T2** export model จริง (บน Colab หรือเครื่องที่มี dataset):
+- [x] **T1** อัปโหลด weights: release [`weights-v1`](https://github.com/ToonRz/retail-shelf-detection/releases/tag/weights-v1) ของ repo นี้ (ทำให้ Streamlit app ใช้ได้ด้วย)
+  (ไฟล์ best.pt จาก `MyDrive/retail-shelf-detection/runs/detect/<model>/weights/`)
+  - ✅ (2026-11-10) `yolov8n.pt` 6,559,018 B sha256 `fe2557b6b7ba6c369c85ee47ad8c5f1eabbe78c7de2597912c669efc18760f61` · `yolov8s.pt` 22,603,562 B sha256 `3684e2b58424d8a967ab7261012dd887d95d213103ad10cd240fad0844f44404`
+  - ตรวจ: sha256 ของไฟล์ที่ดึงจาก Drive = digest ของ asset ใน release = ไฟล์ที่ดาวน์โหลดกลับมา (ตรงทั้ง 2 ไฟล์)
+  - ทำผ่าน GitHub Actions ครั้งเดียว (`publish-weights`) เพราะ Drive connector ส่ง binary ขนาดนี้ไม่ได้ (ลบ workflow ออกแล้ว)
+- [x] **T2** export model จริง → release [`model-yolov8n-v3`](https://github.com/ToonRz/retail-shelf-agent/releases/tag/model-yolov8n-v3) ของ **retail-shelf-agent**
   ```bash
-  python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16
-  gh release create model-yolov8n-v3 export/yolov8n/model.onnx export/yolov8n/labels.json export/yolov8n/model.json -R ToonRz/retail-shelf-detection
+  python -c "import sys; sys.path.insert(0, 'src'); from data import download_dataset; download_dataset(3, 'datasets/sell-products')"
+  python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16   # ultralytics 8.4.208
   ```
-  จากนั้นเปิด PR ใน retail-shelf-agent:
-  - copy `export/yolov8n/fixtures/` ไปที่ `test/fixtures/sell-v3/`
-  - แก้ `model.lock.json` ให้ชี้ไปที่ `model-yolov8n-v3` พร้อม sha256 ของทั้ง 3 ไฟล์ (ค่าอยู่ใน `model.json` หรือใช้ `shasum -a 256`)
-  - ตรวจ: `npm run fetch-model` ผ่าน และ parity test ของ A ผ่านบน `sell-v3`
-  - ⛔ ติดอยู่ (2026-11-10): รอ T1 (`best.pt`) และ `ROBOFLOW_API_KEY` ใน `.env` (สำหรับรูป test split ที่ใช้ทำ fixture)
-  - ⛔ ยังติด (2026-11-10, รอบ 2): รอ T1 เหมือนเดิม (ไม่มี `best.pt` · ห้ามเทรนใหม่และห้ามใช้ COCO แทน) จึงยังไม่ได้ export / release / แก้ agent
-  - ทำต่อเมื่อมี `weights/yolov8n.pt` และ `.env` แล้ว (ใช้ ultralytics 8.4.208):
-    ```bash
-    gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection   # T1
-    python -c "import sys; sys.path.insert(0, 'src'); from data import download_dataset; download_dataset(3, 'datasets/sell-products')"
-    python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16   # ต้องได้ 110 คลาส, output [1,114,8400]
-    gh release create model-yolov8n-v3 export/yolov8n/model.onnx export/yolov8n/labels.json export/yolov8n/model.json -R ToonRz/retail-shelf-agent
-    ```
-    แล้วใน agent: แก้ `model.lock.json` + copy fixture (ไม่ใช้รูปที่เห็นหน้าคน) → `npm run fetch-model && npm run typecheck && npm test`
+  - ✅ (2026-11-10) 110 คลาส · opset 18 · output `[1,114,8400]` · `model.onnx` sha256 `f970340c26c5e2354bf2c15593a5d3fe96e5cc65fd421a79cae0dd97099d420f` (จาก `weights-v1/yolov8n.pt`)
+  - agent: `model.lock.json` ชี้ `model-yolov8n-v3` พร้อม sha256 ทั้ง 3 ไฟล์ · `test/fixtures/sell-v3/` = 15 รูป test + 1 crop ที่ไม่เป็นสี่เหลี่ยมจัตุรัส + `expected.json` จาก onnx ไฟล์เดียวกับที่อัปโหลด (`model_sha256` ตรง lock)
+  - ไม่ใช้รูปที่เห็นคน: ตัด `IMG_5355` (มีคนนั่งอยู่ด้านหลัง) ออกจาก 16 รูปที่สคริปต์เลือก
+  - ตรวจ: `npm run fetch-model` (sha256 ผ่าน), `npm run typecheck`, `npm test` (7/7) และ CI ของ agent ผ่าน · parity test บน `sell-v3` เป็นของงาน A4
 - [x] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
   - ✅ (2026-11-10) Pages เปิดแล้ว (`build_type: workflow`) · ส่ง invite สิทธิ์ write ให้ BoonyasakR, phichitphongpond, KXNBYV ทั้งใน agent และ web แล้ว (รอเพื่อนกด accept)
 - [ ] **T4** หลัง A + C1 + T2 เสร็จ: `git tag v0.1.0 && git push --tags` ใน agent → รอ release → ใน web รัน `make bump-agent ALLOW_MINOR=1` แล้วเปิด PR
-  - ⛔ ติดอยู่ (2026-11-10): `src/detect.ts` ยัง throw `not_implemented` (A1–A4), ยังไม่มี `release.yml` (C1) และ `make bump-agent` (C2), และรอ T2
+  - ⛔ ติดอยู่ (2026-11-10): `src/detect.ts` ยัง throw `not_implemented` (A1–A4), ยังไม่มี `release.yml` (C1) และ `make bump-agent` (C2) · T2 เสร็จแล้ว
 
 ---
 

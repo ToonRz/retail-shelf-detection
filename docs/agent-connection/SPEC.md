@@ -16,7 +16,7 @@
 
 | Repo | หน้าที่ | ผลลัพธ์ |
 |---|---|---|
-| [retail-shelf-detection](https://github.com/ToonRz/retail-shelf-detection) (repo นี้) | เทรน / ประเมิน / **export** | release `model-yolov8n-v3`: `model.onnx`, `labels.json`, `model.json` + fixture |
+| [retail-shelf-detection](https://github.com/ToonRz/retail-shelf-detection) (repo นี้) | เทรน / ประเมิน / **export** | `model.onnx`, `labels.json`, `model.json` + fixture (ขึ้นเป็น release `model-yolov8n-v3` ของ agent) · release `weights-v1` (best.pt) |
 | [retail-shelf-agent](https://github.com/ToonRz/retail-shelf-agent) | library JS: โหลด model, ตรวจ sha256, preprocess → run → NMS | release `vX.Y.Z` (§4) |
 | [retail-shelf-web](https://github.com/ToonRz/retail-shelf-web) | หน้าเว็บ static, pin `agent.version` | GitHub Pages |
 
@@ -48,14 +48,14 @@ python src/export_agent_assets.py --images datasets/sell-products/test/images --
 `expected.json` = สิ่งที่ **Ultralytics ทายด้วย `model.onnx` ไฟล์เดียวกันนั้น** (conf 0.25, iou 0.7, imgsz 640) พิกัดเป็น pixel ของรูปต้นฉบับ
 ใช้เป็นเกณฑ์ parity ของ agent (§6.4) · export ONNX ซ้ำแล้ว byte ไม่เหมือนเดิม จึงต้องสร้าง fixture คู่กับ onnx ไฟล์ที่ปล่อยจริงเสมอ
 
-ไฟล์ทั้งสามขึ้นเป็น release ของ repo นี้ (tag `model-yolov8n-v3`) แล้ว agent อ้างถึงด้วย `model.lock.json`:
+ไฟล์ทั้งสามขึ้นเป็น release ของ **retail-shelf-agent** (tag `model-yolov8n-v3`) แล้ว agent อ้างถึงด้วย `model.lock.json`:
 
 ```json
-{ "source": "https://github.com/ToonRz/retail-shelf-detection/releases/download/model-yolov8n-v3/",
+{ "source": "https://github.com/ToonRz/retail-shelf-agent/releases/download/model-yolov8n-v3/",
   "files": { "model.onnx": "<sha256>", "labels.json": "<sha256>", "model.json": "<sha256>" } }
 ```
 
-`npm run fetch-model` ดาวน์โหลดและปฏิเสธถ้า sha256 ไม่ตรง · ตอนนี้ lock ชี้ไปที่ release `dev-coco-model` (COCO yolov8n 80 คลาส, ใช้ dev เท่านั้น)
+`npm run fetch-model` ดาวน์โหลดและปฏิเสธถ้า sha256 ไม่ตรง · ตอนนี้ lock ชี้ไปที่ release `model-yolov8n-v3` (110 คลาส) · release `dev-coco-model` (COCO 80 คลาส) ยังเก็บไว้สำหรับ dev
 
 ## 4. Agent release (สัญญาของ release)
 
