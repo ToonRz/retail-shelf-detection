@@ -617,11 +617,14 @@ retail-shelf-detection/
 │   ├── data.py                  # ดาวน์โหลด Roboflow, แก้ data.yaml, อ่าน label, EDA, ตรวจภาพซ้ำข้าม split
 │   ├── evaluate.py              # detection metrics, image-level accuracy/AUC/ROC, box-level errors, กราฟ, ตัวอย่างถูก/ผิด
 │   ├── infer.py                 # โหลด weights, ทำนายรูป/วิดีโอ (ใช้โดย prototype และ CLI)
+│   ├── export_agent_assets.py   # export model.onnx + labels + fixture ให้ retail-shelf-agent (docs/agent-connection/)
 │   ├── make_report.py           # เติมตาราง/ข้อค้นพบ/การทดสอบทางสถิติลง README
 │   └── plotstyle.py             # สี/สไตล์กราฟ
 ├── results/                     # .csv + .png/.jpg ที่ใช้ในรายงาน (commit ได้)
 ├── weights/                     # best.pt ของแต่ละโมเดลสำหรับ prototype (weights/<model>.pt)
 ├── docs/slides_outline.md       # โครงสไลด์และบทพูดสำหรับนำเสนอ 5 นาที
+├── docs/agent-connection/       # spec + tasks ของเว็บที่รัน model ใน browser (retail-shelf-agent / retail-shelf-web)
+├── mock/agent-connection.html   # mock ของการเชื่อมต่อนั้น
 ├── requirements.txt             # เทรน + ประเมิน
 ├── requirements-app.txt         # prototype (รันในเครื่อง)
 ├── app/requirements.txt, packages.txt  # สำหรับ deploy บน Streamlit Community Cloud
