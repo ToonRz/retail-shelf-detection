@@ -222,6 +222,50 @@ def near_duplicate_check(root: str | Path, out_dir: str | Path = "results", wind
             "train_frame_adjacent": int((burst.nearest_train_frame == 1).sum())}
 
 
+def plot_class_samples(root, names, out_path, cols=11, splits=("test", "valid", "train")):
+    """One example per class, cropped to its box (+ margin), in a grid.
+    test/valid are searched first because Roboflow only augments train. Per class the
+    picked box is the largest one below 90% of the frame, so the product fills the tile.
+    Returns the number of classes that have an example."""
+    import matplotlib.pyplot as plt
+    from PIL import Image
+
+    best = {}  # class -> (area, image path, box)
+    for folder in splits:
+        img_dir = Path(root) / folder / "images"
+        if not img_dir.is_dir():
+            continue
+        for p in list_images(img_dir):
+            for c, cx, cy, w, h in read_labels(label_path(p)):
+                a = w * h
+                if 0.02 <= a <= 0.9 and a > best.get(c, (0,))[0]:
+                    best[c] = (a, p, (cx, cy, w, h))
+        if len(best) == len(names):
+            break
+
+    rows = -(-len(names) // cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 1.5, rows * 1.72), squeeze=False)
+    for ax in axes.ravel():
+        ax.axis("off")
+    for c, ax in zip(range(len(names)), axes.ravel()):
+        ax.set_title(names[c], fontsize=6, fontweight="normal", pad=2)
+        if c not in best:
+            continue
+        _, p, (cx, cy, w, h) = best[c]
+        with Image.open(p) as im:
+            im = im.convert("RGB")
+            W, H = im.size
+            half = max(w * W, h * H) * 0.58  # square crop around the box
+            box = [int(cx * W - half), int(cy * H - half), int(cx * W + half), int(cy * H + half)]
+            ax.imshow(im.crop(box).resize((160, 160)))
+    fig.suptitle(f"One example per class ({len(best)} of {len(names)} classes)", fontsize=12,
+                 fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.985))
+    fig.savefig(out_path, dpi=110, pil_kwargs={"quality": 88})
+    plt.close(fig)
+    return len(best)
+
+
 # --------------------------------------------------------------------------- #
 def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results") -> dict:
     """Images / boxes per split, class distribution, boxes per image, box size.
@@ -316,6 +360,7 @@ def run_eda(root: str | Path, names: list[str], out_dir: str | Path = "results")
         "images_checked_for_size": int(sum(img_sizes.values())),
         "train_boxes_covering_97pct_of_frame": int(sum(a >= 0.97 for a in ar)),
     }
+    summary["classes_with_sample_image"] = plot_class_samples(root, names, out_dir / "class_samples.jpg")
     if (root / "test" / "images").is_dir() and (root / "train" / "images").is_dir():
         summary["near_duplicates"] = near_duplicate_check(root, out_dir)
     return summary
