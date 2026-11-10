@@ -5,7 +5,7 @@
 | งาน | Repo | ใคร | ต้องรออะไร |
 |---|---|---|---|
 | T0 โครงทั้งหมด + contract | ทั้ง 3 | ✅ ทำแล้ว | — |
-| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | T1–T3 เสร็จ · T4 เหลือกดออก release `v0.1.0` |
+| T1–T4 model จริง, สิทธิ์, release แรก | detection / ตั้งค่า GitHub | **Toon** | ✅ เสร็จทั้งหมด |
 | **A** inference ใน browser | retail-shelf-agent | ✅ ทำแล้ว (2026-11-10) | — |
 | **B** หน้าเว็บ | retail-shelf-web | ✅ ทำแล้ว (2026-11-10) | — |
 | **C** release, bump, deploy | agent + web | ✅ ทำแล้ว (2026-11-10) | — |
@@ -59,11 +59,10 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - ตรวจ: `npm run fetch-model` (sha256 ผ่าน), `npm run typecheck`, `npm test` (7/7) และ CI ของ agent ผ่าน · parity test บน `sell-v3` เป็นของงาน A4
 - [x] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
   - ✅ (2026-11-10) Pages เปิดแล้ว (`build_type: workflow`) · ส่ง invite สิทธิ์ write ให้ BoonyasakR, phichitphongpond, KXNBYV ทั้งใน agent และ web แล้ว (รอเพื่อนกด accept)
-- [ ] **T4** ออก release แรก `v0.1.0` แล้ว bump เว็บ
-  - A, C1, C2, T2 เสร็จหมดแล้ว · ทดสอบ release `v0.1.0` ที่ package ในเครื่องกับเว็บใน Chromium แล้ว (WASM + WebGPU, ผลตรง `expected.json`)
-  - ⛔ ค้างที่ขั้นเดียว: session ของ Claude push tag / สั่งรัน release workflow ไม่ได้ → Toon ทำเอง:
-    - GitHub → retail-shelf-agent → Actions → **release** → Run workflow → version `v0.1.0` (หรือ `git tag v0.1.0 && git push origin v0.1.0`)
-    - แล้วใน web: `make bump-agent ALLOW_MINOR=1` → commit `agent.version` (= `v0.1.0`) → push / PR → Pages deploy เอง
+- [x] **T4** release แรก [`v0.1.0`](https://github.com/ToonRz/retail-shelf-agent/releases/tag/v0.1.0) แล้ว bump เว็บ
+  - ✅ (2026-11-10) `release.yml` (Run workflow, version `v0.1.0`) สร้าง release ไฟล์ flat 7 ไฟล์ ~43 MB · `sha256sum -c SHA256SUMS` ผ่านใน workflow
+  - web: `make bump-agent ALLOW_MINOR=1` (mock → v0.1.0) ผ่าน test + build · Pages deploy พร้อม release แล้ว: https://toonrz.github.io/retail-shelf-web/
+  - ที่เหลือ: กดวัดความเร็ว (A5) บนเครื่องที่จะพรีเซนต์ แล้วถ่าย screenshot ลงรายงาน (README ข้อ 8)
 ---
 
 ## งาน A — inference ใน browser (retail-shelf-agent)
