@@ -46,7 +46,7 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
 - [ ] **T1** อัปโหลด weights: `gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection`
   (ไฟล์ best.pt จาก `MyDrive/retail-shelf-detection/runs/detect/<model>/weights/`) ทำให้ Streamlit app ใช้ได้ด้วย
   - ⛔ ติดอยู่ (2026-11-10): ไม่มี `best.pt` ในเครื่อง (ไม่มี Drive mount, ไม่อยู่ใน `~/Downloads`/`~/Documents`) ต้อง login Google Drive หรือดาวน์โหลดมาวางที่ `weights/` ก่อน
-  - ⛔ ยังติด (2026-11-10, รอบ 2): ค้นด้วย Google Drive connector แล้ว **ไม่พบ** โฟลเดอร์ `retail-shelf-detection/` หรือไฟล์ `best.pt` / `*.pt` ใดเลยใน Drive ที่ต่ออยู่ (บัญชี g.swu.ac.th) และยังไม่มี release `weights-v1` · น่าจะเทรนไว้ใน Drive ของบัญชีอื่น → ต่อ connector กับบัญชีนั้น หรือ copy `runs/detect/yolov8{n,s}/weights/best.pt` มาไว้ใน Drive นี้ แล้วสั่งทำต่อ
+  - ⛔ ยังติด (2026-11-10, รอบ 2): เจอไฟล์ใน Drive ที่แชร์มาแล้ว (`runs/detect/yolov8n/weights/best.pt` 6.5 MB, `runs/detect/yolov8s/weights/best.pt` 22.6 MB) แต่ Google Drive connector ดาวน์โหลด binary ขนาดนี้ไม่ได้ (ผลลัพธ์ใหญ่เกิน connector ตัดการเชื่อมต่อ) · ยังไม่มี release `weights-v1` · ทางไป: ดาวน์โหลด best.pt มาวางที่ `weights/` เอง แล้วรันคำสั่งด้านล่าง
 - [ ] **T2** export model จริง (บน Colab หรือเครื่องที่มี dataset):
   ```bash
   python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16
