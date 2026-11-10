@@ -1,0 +1,30 @@
+name: publish-weights (one-off)
+on:
+  workflow_dispatch:
+    inputs:
+      n_id: { description: "Drive file id of yolov8n best.pt", required: true }
+      s_id: { description: "Drive file id of yolov8s best.pt", required: true }
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download from Drive
+        run: |
+          mkdir weights
+          dl() { curl -fsSL -o "$2" "https://drive.usercontent.google.com/download?id=$1&export=download&confirm=t"; }
+          dl "${{ inputs.n_id }}" weights/yolov8n.pt
+          dl "${{ inputs.s_id }}" weights/yolov8s.pt
+          ls -l weights
+          test "$(stat -c %s weights/yolov8n.pt)" = 6559018
+          test "$(stat -c %s weights/yolov8s.pt)" = 22603562
+          python3 -c "import zipfile,sys; [zipfile.ZipFile(f).testzip() for f in sys.argv[1:]]" weights/*.pt
+          sha256sum weights/*.pt | tee SHA256SUMS
+      - name: Create release weights-v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R "$GITHUB_REPOSITORY" \
+            --title "weights-v1" --notes "best.pt from runs/detect/yolov8{n,s}/weights (sell-products v3, 110 classes). sha256:
+          $(cat SHA256SUMS)"
