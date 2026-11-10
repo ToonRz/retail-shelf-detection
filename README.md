@@ -22,7 +22,7 @@
 | 1 ชื่อโปรเจกต์ · 2 สมาชิก · 3 ปัญหา/โจทย์ | ด้านล่างนี้ |
 | 4 ข้อมูลที่ใช้ | [ข้อ 4](#ข้อ-4--ข้อมูลที่ใช้) + ผล EDA ในข้อ 5 |
 | 5 ขั้นตอนการทดลอง · 6 ตัวชี้วัด · 7 ผลการทดลอง | [ข้อ 5](#ข้อ-5--ขั้นตอนการทดลอง) · [ข้อ 6](#ข้อ-6--ตัวชี้วัดที่ใช้) · [ข้อ 7](#ข้อ-7--ผลการทดลอง) |
-| 8 ต้นแบบ (Prototype) | [ข้อ 8](#ข้อ-8--ต้นแบบ-prototype) – เว็บแอป Streamlit: รูปภาพ / วิดีโอ / กล้อง |
+| 8 ต้นแบบ (Prototype) | [ข้อ 8](#ข้อ-8--ต้นแบบ-prototype) – เว็บที่รัน model ใน browser (<https://toonrz.github.io/retail-shelf-web/>) และเว็บแอป Streamlit: รูปภาพ / วิดีโอ / กล้อง |
 | 9 สรุปและข้อเสนอแนะ | [ข้อ 9](#ข้อ-9--สรุปและข้อเสนอแนะ) |
 | 11 นำเสนอ 5 นาที | โครงสไลด์และบทพูด: [`docs/slides_outline.md`](docs/slides_outline.md) |
 
@@ -98,7 +98,7 @@
 และจะถูกบันทึกเป็น `results/class_samples.jpg` เมื่อรัน notebook รอบถัดไป (ต้องมี dataset ซึ่งไม่ได้เก็บไว้ใน repo)
 จำนวนภาพ/กล่องต่อ split และการกระจายของคลาสอยู่ใน "ผล EDA" ของข้อ 5
 
-ไม่มีการ commit ตัว dataset หรือ API key ลง repo ส่วนโมเดลที่เทรนแล้วแจกผ่าน GitHub Release `weights-v1` (ข้อ 8.1)
+ไม่มีการ commit ตัว dataset หรือ API key ลง repo ส่วนโมเดลที่เทรนแล้วแจกผ่าน GitHub Release `weights-v1` (ข้อ 8.2.1)
 
 ---
 
@@ -425,6 +425,100 @@ Confusion matrix ที่ conf 0.25 ครบ 110 คลาส (`results/confus
 
 ## ข้อ 8 — ต้นแบบ (Prototype)
 
+> **ร่าง (2026-11-10)** ช่องที่เขียนว่า _(เพื่อน N กรอก)_ คืองานที่เหลือใน [TASKS.md § งานที่เหลือ](docs/agent-connection/TASKS.md#งานที่เหลือ-เพื่อน-3-คน)
+> ใครกรอกแล้วให้ลบ placeholder ออก และลบกล่องนี้เมื่อข้อ 8 เสร็จ
+
+ต้นแบบมี 2 ตัวซึ่งใช้ `best.pt` ตัวเดียวกับที่ประเมินในข้อ 7 (YOLOv8n, 110 คลาส)
+
+| | 8.1 เว็บที่รันใน browser (ตัวหลัก) | 8.2 เว็บแอป Streamlit |
+|---|---|---|
+| ลิงก์ | **<https://toonrz.github.io/retail-shelf-web/>** | รันในเครื่อง หรือ deploy บน Streamlit Community Cloud |
+| model รันที่ไหน | ในเครื่องผู้ใช้ (onnxruntime-web: WebGPU หรือ WASM) | บน server ที่รันแอป (PyTorch) |
+| รูปของผู้ใช้ | ไม่ออกจากเครื่อง | ถูกส่งไปที่ server |
+| ค่าใช้จ่าย / server | ฟรี, ไม่มี server (GitHub Pages) | ฟรี แต่ server หลับเมื่อไม่มีคนใช้ |
+| ทำอะไรได้ | รูป, ลากวาง, รูปตัวอย่าง, กล้อง | รูป (หลายรูป), วิดีโอ, กล้อง, เลือก v8n / v8s |
+
+### 8.1 เว็บที่รันใน browser
+
+![หน้าตรวจจับบน desktop](https://raw.githubusercontent.com/ToonRz/retail-shelf-web/main/docs/screenshots/desktop-light.png)
+
+| มือถือ (dark mode) | หน้าเกี่ยวกับ |
+|---|---|
+| <img src="https://raw.githubusercontent.com/ToonRz/retail-shelf-web/main/docs/screenshots/mobile-dark.png" width="260"> | <img src="https://raw.githubusercontent.com/ToonRz/retail-shelf-web/main/docs/screenshots/about.png" width="420"> |
+
+_ภาพจาก Chromium (WASM) กับ release `v0.1.0` · ภาพบนเครื่องจริงและภาพสินค้าที่ถ่ายเอง: (เพื่อน 1 กรอก)_
+
+**ใช้งานอย่างไร:** เปิดลิงก์ → รอแถบโหลด model (ครั้งแรกราว 43 MB, ครั้งต่อไปมาจาก cache ของ browser) →
+อัปโหลดรูป / ลากรูปมาวาง / กด *ใช้รูปตัวอย่าง* / *เปิดกล้อง* → ได้กรอบสีแยกตามสินค้า, ตารางจำนวนต่อชนิด,
+สินค้าที่มั่นใจที่สุด (top-1 แบบเดียวกับข้อ 6.2), เวลาที่ใช้ต่อรูป และ backend · slider *ความมั่นใจขั้นต่ำ* ตั้งต้นที่ 0.25 เท่ากับข้อ 7
+ถ้าเครื่องไม่มี WebGPU เว็บจะใช้ WASM เองและบอกไว้ในแถบสถานะ ถ้าโหลดไม่ได้จะขึ้นสาเหตุเป็นภาษาไทย (เช่น เวอร์ชันไม่ตรง, sha256 ของ model ไม่ตรง)
+
+#### 8.1.1 จาก `best.pt` มาเป็นเว็บ
+
+แยกเป็น 3 repo ที่คุยกันผ่านไฟล์ release เท่านั้น (รายละเอียด: [SPEC](docs/agent-connection/SPEC.md))
+
+```
+retail-shelf-detection   best.pt ──src/export_agent_assets.py──> model.onnx + labels.json + model.json + fixture
+        │                (release weights-v1)                     (release model-yolov8n-v3 ของ agent)
+        ▼
+retail-shelf-agent       โหลด model + ตรวจ sha256 → letterbox → onnxruntime-web → NMS
+        │                tag v0.1.0 ──release.yml──> GitHub Release (ไฟล์ flat + manifest.json + SHA256SUMS)
+        ▼
+retail-shelf-web         agent.version = v0.1.0 ──make bump-agent──> ดึง + ตรวจ release → test → build
+                         push main ──pages.yml──> GitHub Pages
+```
+
+| ขั้น | ทำอะไร | ไฟล์ |
+|---|---|---|
+| export | `best.pt` → ONNX opset 18, input `[1,3,640,640]`, output `[1,114,8400]` (4 ค่ากรอบ + 110 คลาส), ไม่มี NMS ในกราฟ, 12.9 MB | `src/export_agent_assets.py` |
+| preprocess | letterbox ให้เท่ากับ Ultralytics 8.4.208: ย่อด้วยอัตราส่วนเดิม (ปัดเลขแบบ Python), resize แบบ bilinear ของ OpenCV, เติมขอบสี 114 | agent `src/preprocess.ts` |
+| run | onnxruntime-web ลอง WebGPU ก่อน ถ้าไม่ได้ใช้ WASM | agent `src/detect.ts` |
+| postprocess | คลาสที่คะแนนสูงสุด → ตัดที่ conf > 0.25 → NMS แยกตามคลาส (IoU 0.7) → สูงสุด 300 กรอบ → แปลงกลับเป็นพิกเซลของรูปเดิม | agent `src/postprocess.ts` |
+| release | ไฟล์ release รวม ~43 MB: `shelf-agent.js`, `model.onnx`, `labels.json`, ort wasm ชุดเดียว (`jsep`, ใช้ได้ทั้ง WebGPU และ WASM), `manifest.json`, `SHA256SUMS` | agent `scripts/package-release.mjs`, `.github/workflows/release.yml` |
+| pin / deploy | เว็บ pin เวอร์ชัน agent ไว้ในไฟล์ `agent.version` บรรทัดเดียว · `make bump-agent` ปฏิเสธการถอยเวอร์ชัน, การข้าม minor ที่ไม่ได้ตั้งใจ และ release ที่ checksum ไม่ตรง | web `scripts/agent-release.mjs`, `.github/workflows/pages.yml` |
+
+ความปลอดภัยของ release: browser คำนวณ sha256 ของ `model.onnx` เทียบกับ `manifest.json` ก่อนใช้ทุกครั้ง และฝั่งเว็บตรวจ `SHA256SUMS` ของทุกไฟล์ตอน build
+
+#### 8.1.2 ผลบน browser เท่ากับ Ultralytics หรือไม่ (parity)
+
+ใช้ fixture ที่ Ultralytics ทายด้วย **ไฟล์ onnx ตัวเดียวกับที่ปล่อยจริง** (15 รูปจาก test split + 1 รูปที่ crop ให้ไม่เป็นสี่เหลี่ยมจัตุรัส)
+เกณฑ์ (SPEC §6.4): ทุกกรอบต้องมีคู่ที่คลาสเดียวกัน IoU ≥ 0.9 และ confidence ต่างไม่เกิน 0.02 และต้องไม่มีกรอบเกินที่ conf ≥ 0.30
+
+| ชุดทดสอบ | รัน | ผล |
+|---|---|---|
+| `sell-v3` 16 รูป (model จริง) | test อัตโนมัติใน CI (onnxruntime-web แบบ WASM บน Node) | ผ่านทุกรูป |
+| `coco-dev` 3 รูป (model COCO, รูปที่ต้อง resize จริง 810×1080, 810×500, 607×1080) | test อัตโนมัติใน CI | ผ่านทุกรูป |
+| `sell-v3` 16 รูป | Chromium จริง ทั้ง WebGPU และ WASM | ตรงทุกกรอบ (IoU 1.000, Δconf 0.0000) |
+| อุปกรณ์จริง (Chrome / Safari / Firefox / มือถือ) | _(เพื่อน 1 กรอก)_ | _(เพื่อน 1 กรอก)_ |
+
+#### 8.1.3 ความเร็ว
+
+ค่าจากปุ่ม *วัดความเร็วเครื่องนี้* ในหน้าเกี่ยวกับ (ตรวจรูปตัวอย่าง 20 ครั้งต่อ backend ไม่นับรอบแรก
+เวลา = preprocess + run + postprocess ใน browser เทียบได้กับคอลัมน์ ms/img (e2e) ในข้อ 7 ซึ่งวัดบน GPU ของ Colab)
+
+| เครื่อง / browser | WebGPU เฉลี่ย (ms) | WASM เฉลี่ย (ms) | โหลด model ครั้งแรก |
+|---|---:|---:|---|
+| เครื่องที่ใช้นำเสนอ: _(เพื่อน 2 กรอก)_ | _(เพื่อน 2)_ | _(เพื่อน 2)_ | _(เพื่อน 2)_ |
+| มือถือ: _(เพื่อน 2 กรอก)_ | _(เพื่อน 2)_ | _(เพื่อน 2)_ | _(เพื่อน 2)_ |
+| (อ้างอิง) container ที่ใช้ทดสอบ, CPU, ไม่มี GPU จริง | – | 384 | – |
+
+#### 8.1.4 ทดสอบกับสินค้าจริงนอก dataset
+
+ถ่ายสินค้าที่อยู่ใน 110 คลาสจากร้านจริงด้วยกล้องของเว็บ เพื่อตอบจุดอ่อนในข้อ 9.3 ที่ยังไม่ได้ทดสอบกับแสง มุมกล้อง และภาพชั้นวางแบบอื่น (และตัวเลขใน test อาจสูงเกินจริงเพราะภาพ burst ข้อ 7.7)
+
+| จำนวนรูป | top-1 ถูก | ไม่เจอสินค้า | ทายผิดชนิด | ข้อสังเกต |
+|---:|---:|---:|---:|---|
+| _(เพื่อน 1)_ | _(เพื่อน 1)_ | _(เพื่อน 1)_ | _(เพื่อน 1)_ | _(เพื่อน 1: เช่น แสง, มุม, หลายชิ้นในรูป, สินค้าที่ไม่อยู่ใน 110 คลาส)_ |
+
+#### 8.1.5 ข้อจำกัด
+
+* ครั้งแรกต้องโหลด ~43 MB · เครื่องที่ไม่มี WebGPU ช้ากว่ามาก (ดู 8.1.3)
+* ไม่มีการตรวจวิดีโอแบบต่อเนื่องในเว็บ (กล้อง = ถ่ายทีละภาพ) · ไม่มี multi-thread เพราะ GitHub Pages ไม่ส่ง header ที่ต้องใช้ (cross-origin isolation)
+* ใช้ได้แค่ YOLOv8n (v8s ยังไม่ได้ export) และรู้จักแค่ 110 คลาสที่เทรน
+* ยังไม่ได้ทดสอบบน Safari / Firefox จริง: _(เพื่อน 1 อัปเดตหลังทดสอบ)_
+
+### 8.2 เว็บแอป Streamlit
+
 เว็บแอป **Streamlit** (`app/streamlit_app.py`) ที่นำโมเดลที่เทรนแล้วไปใช้จริง มี 3 โหมด
 
 | โหมด | ทำอะไร |
@@ -438,10 +532,10 @@ Confusion matrix ที่ conf 0.25 ครบ 110 คลาส (`results/confus
 
 ![prototype](results/prototype_screenshot.png)
 
-> ภาพด้านบนเป็น **ภาพทดสอบหน้าจอ** ที่ถ่ายด้วย weights COCO มาตรฐาน (`yolov8n.pt`, 80 คลาส) เพราะ `best.pt` ของโปรเจกต์ยังไม่ได้อยู่ใน repo
-> ผลในภาพจึงเป็นคลาสของ COCO ไม่ใช่สินค้า เมื่อวาง `best.pt` ใน `weights/` แล้วให้ถ่ายภาพหน้าจอใหม่ด้วยรูปสินค้าจริงมาแทนไฟล์นี้
+> ภาพด้านบนยังเป็น **ภาพทดสอบหน้าจอ** ที่ถ่ายด้วย weights COCO (80 คลาส) ก่อนมี `best.pt`
+> ตอนนี้ `best.pt` อยู่ใน release `weights-v1` แล้ว: _(เพื่อน 2 ถ่ายภาพหน้าจอใหม่ด้วยรูปสินค้าจริงมาแทน `results/prototype_screenshot.png`)_
 
-### 8.1 เรียกโมเดลที่เทรนมาใช้อย่างไร
+#### 8.2.1 เรียกโมเดลที่เทรนมาใช้อย่างไร
 
 แอปใช้ไฟล์ `best.pt` ที่ notebook เทรนไว้ (epoch ที่ได้ mAP บน valid ดีที่สุด ตัวเดียวกับที่ใช้ประเมินในข้อ 7)
 ไฟล์นี้เก็บทั้ง weights และรายชื่อ 110 คลาส จึงไม่ต้องตั้งค่าอะไรเพิ่ม `src/infer.py: find_weights` หาไฟล์ตามลำดับนี้
@@ -473,13 +567,10 @@ r.plot()                                       # ภาพที่วาดก�
 * วิดีโอ (`annotate_video`) อ่านทีละเฟรมด้วย OpenCV เรียก `model.predict` ทุก ๆ n เฟรม แล้วเขียนเฟรมที่วาดกรอบเป็นไฟล์ `.webm`
 * ถ้าไฟล์ที่โหลดมาไม่ได้มี 110 คลาส (เช่นเผลอใช้ `yolov8n.pt` ของ COCO) แอปจะแสดงคำเตือน
 
-### 8.2 วิธีใช้งาน
+#### 8.2.2 วิธีใช้งาน
 
-**ครั้งแรก: อัปโหลดโมเดลขึ้น GitHub Release** (ทำครั้งเดียว แล้วทุกเครื่องและเว็บที่ deploy จะดาวน์โหลดเอง)
-
-1. ดาวน์โหลด `best.pt` จาก `MyDrive/retail-shelf-detection/runs/detect/yolov8n/weights/` และ `.../yolov8s/weights/`
-2. เปลี่ยนชื่อเป็น `yolov8n.pt` และ `yolov8s.pt`
-3. บน GitHub เปิด *Releases → Draft a new release* ตั้ง tag เป็น `weights-v1` แล้วลากสองไฟล์ไปใส่ในช่อง assets จากนั้นกด *Publish release*
+**โมเดล:** อยู่ใน GitHub Release [`weights-v1`](https://github.com/ToonRz/retail-shelf-detection/releases/tag/weights-v1) แล้ว
+(`yolov8n.pt` sha256 `fe2557b6…0f61`, `yolov8s.pt` sha256 `3684e2b5…4404`) แอปดาวน์โหลดเองตอนรันครั้งแรก
 
 **รันบนเครื่องตัวเอง**
 
@@ -494,11 +585,10 @@ streamlit run app/streamlit_app.py      # เปิด http://localhost:8501
 
 **Deploy เป็นเว็บสาธารณะ (Streamlit Community Cloud, ฟรี)**
 
-1. merge PR นี้เข้า `main` และอัปโหลดโมเดลขึ้น Release ตามด้านบน
-2. เข้า <https://share.streamlit.io> ล็อกอินด้วย GitHub แล้วกด *Create app → Deploy a public app from GitHub*
-3. เลือก repo `ToonRz/retail-shelf-detection`, branch `main`, main file `app/streamlit_app.py` แล้วกด *Deploy*
+1. เข้า <https://share.streamlit.io> ล็อกอินด้วย GitHub แล้วกด *Create app → Deploy a public app from GitHub*
+2. เลือก repo `ToonRz/retail-shelf-detection`, branch `main`, main file `app/streamlit_app.py` แล้วกด *Deploy*
    ระบบติดตั้ง `app/requirements.txt` (torch แบบ CPU) และ `packages.txt` (ไลบรารีที่ OpenCV ต้องใช้) ให้เอง
-4. ได้ลิงก์ `https://<ชื่อแอป>.streamlit.app` ไปเปิดบนมือถือหรือใช้สาธิตตอนนำเสนอได้ ครั้งแรกจะช้าเพราะต้องดาวน์โหลดโมเดล
+3. ได้ลิงก์ `https://<ชื่อแอป>.streamlit.app` ไปเปิดบนมือถือหรือใช้สาธิตตอนนำเสนอได้ ครั้งแรกจะช้าเพราะต้องดาวน์โหลดโมเดล
 
 **ใช้จาก command line (ไม่ต้องเปิดเว็บ)**
 
@@ -507,11 +597,11 @@ python src/infer.py --source product.jpg --model yolov8n
 python src/infer.py --source clip.mp4 --model yolov8n --stride 2 --out clip_pred.mp4
 ```
 
-**ที่ทดสอบแล้ว** (Python 3.13, CPU, ultralytics 8.4.208, streamlit 1.67) ใช้ weights COCO แทนเพราะยังไม่มี `best.pt` ใน repo:
+**ที่ทดสอบแล้ว** (Python 3.13, CPU, ultralytics 8.4.208, streamlit 1.67) ทดสอบด้วย weights COCO ก่อนมี `best.pt`:
 หน้าแจ้งเตือนเมื่อไม่มีโมเดล, ดาวน์โหลดโมเดลจากลิงก์อัตโนมัติ (และกรณีลิงก์ยังไม่มีได้ 404 แล้วขึ้นวิธีแก้),
 คำเตือนเมื่อจำนวนคลาสไม่ใช่ 110, อัปโหลด weights, ตรวจจับจากรูป, ปรับ confidence แล้วผลเปลี่ยน,
 วิดีโอ 30 เฟรม (ไฟล์ VP9 `.webm` ที่เล่นในเบราว์เซอร์ได้) และแท็บกล้องแสดงผล
-**ยังไม่ได้ทดสอบ:** `best.pt` 110 คลาสของกลุ่ม, ถ่ายจากกล้องจริง และการ deploy บน Streamlit Community Cloud
+**ยังไม่ได้ทดสอบ:** `best.pt` 110 คลาสจาก `weights-v1`, ถ่ายจากกล้องจริง และการ deploy บน Streamlit Community Cloud: _(เพื่อน 2 ทดสอบแล้วอัปเดตบรรทัดนี้ พร้อมลิงก์ `.streamlit.app` ถ้า deploy)_
 
 ข้อจำกัดของต้นแบบ: วิดีโอประมวลผลแบบอัปโหลดทั้งไฟล์ (ยังไม่ใช่สตรีมสด), ไม่มีการ track วัตถุข้ามเฟรม
 จำนวนสินค้าในวิดีโอจึงรายงานเป็นจำนวนมากสุดที่เห็นในเฟรมเดียว และโมเดลรู้จักแค่ 110 คลาสที่เทรน
