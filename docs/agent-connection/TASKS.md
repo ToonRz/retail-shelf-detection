@@ -45,6 +45,7 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
 
 - [ ] **T1** อัปโหลด weights: `gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection`
   (ไฟล์ best.pt จาก `MyDrive/retail-shelf-detection/runs/detect/<model>/weights/`) ทำให้ Streamlit app ใช้ได้ด้วย
+  - ⛔ ติดอยู่ (2026-11-10): ไม่มี `best.pt` ในเครื่อง (ไม่มี Drive mount, ไม่อยู่ใน `~/Downloads`/`~/Documents`) ต้อง login Google Drive หรือดาวน์โหลดมาวางที่ `weights/` ก่อน
 - [ ] **T2** export model จริง (บน Colab หรือเครื่องที่มี dataset):
   ```bash
   python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16
@@ -54,8 +55,11 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - copy `export/yolov8n/fixtures/` ไปที่ `test/fixtures/sell-v3/`
   - แก้ `model.lock.json` ให้ชี้ไปที่ `model-yolov8n-v3` พร้อม sha256 ของทั้ง 3 ไฟล์ (ค่าอยู่ใน `model.json` หรือใช้ `shasum -a 256`)
   - ตรวจ: `npm run fetch-model` ผ่าน และ parity test ของ A ผ่านบน `sell-v3`
-- [ ] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
+  - ⛔ ติดอยู่ (2026-11-10): รอ T1 (`best.pt`) และ `ROBOFLOW_API_KEY` ใน `.env` (สำหรับรูป test split ที่ใช้ทำ fixture)
+- [x] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
+  - ✅ (2026-11-10) Pages เปิดแล้ว (`build_type: workflow`) · ส่ง invite สิทธิ์ write ให้ BoonyasakR, phichitphongpond, KXNBYV ทั้งใน agent และ web แล้ว (รอเพื่อนกด accept)
 - [ ] **T4** หลัง A + C1 + T2 เสร็จ: `git tag v0.1.0 && git push --tags` ใน agent → รอ release → ใน web รัน `make bump-agent ALLOW_MINOR=1` แล้วเปิด PR
+  - ⛔ ติดอยู่ (2026-11-10): `src/detect.ts` ยัง throw `not_implemented` (A1–A4), ยังไม่มี `release.yml` (C1) และ `make bump-agent` (C2), และรอ T2
 
 ---
 
