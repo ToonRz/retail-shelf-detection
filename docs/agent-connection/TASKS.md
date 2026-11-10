@@ -56,6 +56,14 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - แก้ `model.lock.json` ให้ชี้ไปที่ `model-yolov8n-v3` พร้อม sha256 ของทั้ง 3 ไฟล์ (ค่าอยู่ใน `model.json` หรือใช้ `shasum -a 256`)
   - ตรวจ: `npm run fetch-model` ผ่าน และ parity test ของ A ผ่านบน `sell-v3`
   - ⛔ ติดอยู่ (2026-11-10): รอ T1 (`best.pt`) และ `ROBOFLOW_API_KEY` ใน `.env` (สำหรับรูป test split ที่ใช้ทำ fixture)
+  - ทำต่อเมื่อมี `weights/yolov8n.pt` และ `.env` แล้ว (ใช้ ultralytics 8.4.208):
+    ```bash
+    gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection   # T1
+    python -c "import sys; sys.path.insert(0, 'src'); from data import download_dataset; download_dataset(3, 'datasets/sell-products')"
+    python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16   # ต้องได้ 110 คลาส, output [1,114,8400]
+    gh release create model-yolov8n-v3 export/yolov8n/model.onnx export/yolov8n/labels.json export/yolov8n/model.json -R ToonRz/retail-shelf-agent
+    ```
+    แล้วใน agent: แก้ `model.lock.json` + copy fixture (ไม่ใช้รูปที่เห็นหน้าคน) → `npm run fetch-model && npm run typecheck && npm test`
 - [x] **T3** เพิ่มเพื่อนเป็น collaborator ของทั้ง 2 repo และเปิด Pages ใน retail-shelf-web (Settings → Pages → Source: **GitHub Actions**)
   - ✅ (2026-11-10) Pages เปิดแล้ว (`build_type: workflow`) · ส่ง invite สิทธิ์ write ให้ BoonyasakR, phichitphongpond, KXNBYV ทั้งใน agent และ web แล้ว (รอเพื่อนกด accept)
 - [ ] **T4** หลัง A + C1 + T2 เสร็จ: `git tag v0.1.0 && git push --tags` ใน agent → รอ release → ใน web รัน `make bump-agent ALLOW_MINOR=1` แล้วเปิด PR
