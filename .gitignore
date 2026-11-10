@@ -2,6 +2,8 @@
 datasets/
 runs/
 *.pt
+# ...except the final best.pt copies used by the prototype (6 + 22 MB)
+!weights/*.pt
 *.pth
 *.onnx
 *.engine
