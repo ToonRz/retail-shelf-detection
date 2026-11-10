@@ -9,7 +9,7 @@
 | **A** inference ใน browser | retail-shelf-agent | ✅ ทำแล้ว (2026-11-10) | — |
 | **B** หน้าเว็บ | retail-shelf-web | ✅ ทำแล้ว (2026-11-10) | — |
 | **C** release, bump, deploy | agent + web | ✅ ทำแล้ว (2026-11-10) | — |
-| **F1–F3** ทดสอบจริง, ความเร็ว, รายงาน + นำเสนอ | detection (README ข้อ 2, 8) | เพื่อน 3 คน → [งานที่เหลือ](#งานที่เหลือ-เพื่อน-3-คน) | ไม่ต้องรอ |
+| **F1–F3, I1–I3** ทดสอบจริง, ความเร็ว, รายงาน + นำเสนอ, โค้ดเพิ่มคนละชิ้น | detection (README ข้อ 2, 8) + agent + web | เพื่อน 3 คน → [งานที่เหลือ](#งานที่เหลือ-เพื่อน-3-คน) | ไม่ต้องรอ |
 
 A, B, C แตะไฟล์คนละชุดกัน จึงทำพร้อมกันได้เลย ใครจะแก้ไฟล์ contract (§5 ของ spec) ต้องคุยกันก่อน
 
@@ -24,7 +24,7 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
 ## งานที่เหลือ (เพื่อน 3 คน)
 
 โค้ดทุกส่วนเสร็จแล้วและเว็บขึ้นแล้วที่ <https://toonrz.github.io/retail-shelf-web/> (agent `v0.1.0`, model จริง 110 คลาส)
-ที่เหลือคืองานที่ต้องใช้คน / เครื่องจริง และรายงาน + นำเสนอ · ช่อง _(เพื่อน N กรอก)_ อยู่ใน [README ข้อ 8](../../README.md#ข้อ-8--ต้นแบบ-prototype)
+ที่เหลือคืองานที่ต้องใช้คน / เครื่องจริง, รายงาน + นำเสนอ (F) และงานเขียนโค้ดเพิ่มคนละชิ้น (I) · ช่อง _(เพื่อน N กรอก)_ อยู่ใน [README ข้อ 8](../../README.md#ข้อ-8--ต้นแบบ-prototype)
 ตกลงกันเองว่าใครเป็นเพื่อน 1 / 2 / 3 แล้วใส่ชื่อในวงเล็บ · แก้ README ผ่าน PR เข้า `main` ได้เลย (ไม่ต้องรอกัน)
 
 ### เพื่อน 1 — ทดสอบกับเครื่องและสินค้าจริง: _(ชื่อ)_
@@ -71,11 +71,49 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - เปิดเว็บทิ้งไว้ก่อนเริ่มนำเสนอ (model ~43 MB จะได้อยู่ใน cache) · เตรียมคลิปอัดหน้าจอไว้เผื่อเน็ตหรือกล้องมีปัญหา
 - [ ] **F3.5 เตรียมอธิบายตอนนำเสนอ:** release / pin / bump (`release.yml`, `make bump-agent`) และเหตุผลที่เลือกรันใน browser (SPEC §9)
 
-### งานเสริม (ถ้ามีเวลา, ใครก็ได้)
+### งานเขียนโค้ด (คนละชิ้น)
 
-- export YOLOv8s เป็น ONNX แล้วออก agent `v0.2.0` ให้เลือก model ได้ในเว็บ (เปลี่ยน model = minor → ต้อง `make bump-agent ALLOW_MINOR=1`)
-- ทำตาม issue ที่เพื่อน 1 เปิดไว้ (มี test + CI ครบแล้ว แก้แล้ว `npm test` ต้องผ่าน)
+แต่ละชิ้นแก้ไฟล์คนละชุด จึงทำพร้อมกันได้ · ทำใน branch ของตัวเอง → PR เข้า `main` → CI ต้องผ่าน · **ห้ามแก้ contract** (`types.ts` / `agent-contract.ts`)
+ถ้าจำเป็นต้องแก้ไฟล์ร่วม เช่น `src/main.ts` หรือ `index.html` ให้แก้แค่จุดที่ต่อเข้ากับไฟล์ใหม่ของตัวเอง (ไม่กี่บรรทัด)
+เสร็จแล้วเพิ่มย่อหน้าสั้น ๆ ใน README ข้อ 8.1 ว่าทำอะไร + ภาพหรือตัวเลขประกอบ
 
+#### I1 (เพื่อน 1) — test ใน browser จริงใน CI ของ agent · repo `retail-shelf-agent`
+
+ตอนนี้ parity test รันบน Node อย่างเดียว ส่วนการทดสอบใน Chromium ทำด้วยมือ ให้ CI ทดสอบ release ใน browser ทุกครั้ง
+
+- [ ] เพิ่ม `@playwright/test` เป็น devDependency และ `test/e2e/` (แยกจาก vitest)
+- [ ] test: `npm run build` → `npm run package -- --version v0.0.0` → เปิด static server ที่ serve `release/v0.0.0/` + `test/fixtures/sell-v3/`
+  → เปิด Chromium → `load({ baseUrl, expectedVersion: "v0.0.0", backend: "wasm" })` → `detect()` ทุกรูปใน `sell-v3` (เป็น `HTMLImageElement`)
+  → เทียบกับ `expected.json` ด้วยเกณฑ์เดียวกับ `parityProblems` ใน `test/parity.test.ts`
+- [ ] test เพิ่ม: `expectedVersion` ผิด → `version_mismatch` · แก้ไบต์ใน `model.onnx` (ผ่าน `page.route`) → `model_sha256_mismatch`
+- [ ] เพิ่ม job ใน `.github/workflows/ci.yml` (`npx playwright install --with-deps chromium`) และ `npm run test:e2e`
+- ตรวจ: CI เขียว · ลองแก้ `iou` ใน `src/postprocess.ts` ชั่วคราวแล้ว e2e ต้องแดง (แนบ log ทั้งสองแบบใน PR แล้วค่อยคืนค่า)
+
+#### I2 (เพื่อน 2) — ตรวจต่อเนื่องจากกล้อง (real-time) · repo `retail-shelf-web`
+
+ตอนนี้กล้องถ่ายได้ทีละภาพ ให้มีโหมดที่ตรวจทุกเฟรมแล้ววาดกรอบทับวิดีโอสด
+
+- [ ] ไฟล์ใหม่ `src/live.ts`: ปุ่ม "ตรวจต่อเนื่อง" / "หยุด" · วนลูป: จับเฟรม (`createImageBitmap(video)`) → `agent.detect` → วาดกรอบบน canvas ที่ซ้อนอยู่บน `<video>` → เฟรมถัดไป
+  - ห้ามส่งเฟรมใหม่ระหว่างที่เฟรมก่อนยังตรวจไม่เสร็จ (ข้ามเฟรมแทนการต่อคิว)
+  - แสดง FPS และ ms ต่อเฟรม · หยุดเองเมื่อสลับแท็บ (`document.visibilityState`) · ปิดกล้องแล้วต้องคืนกล้องจริง (`track.stop()`)
+  - ตารางนับสินค้าอัปเดตตามเฟรมล่าสุด (ใช้ `countByClass` เดิมใน `src/ui/logic.ts`)
+- [ ] ส่วนที่เป็นตรรกะล้วน (ตัวนับ FPS แบบค่าเฉลี่ยเคลื่อนที่, ตัวตัดสินว่าจะข้ามเฟรมไหม) แยกไว้ใน `src/ui/live-logic.ts` + unit test ใน `test/live.test.ts`
+- [ ] ถ้า UI กระตุกตอนใช้ WASM (~400 ms ต่อเฟรม) ลองย้าย `loadAgent` + `detect` ไปทำใน Web Worker (ไม่บังคับ)
+- ตรวจ: `npm test` + `npm run build` ผ่าน · แนบคลิปสั้นหรือ GIF จากมือถือจริงใน PR · จด FPS ที่ได้บน WebGPU / WASM ลง README 8.1.3
+
+#### I3 (เพื่อน 3) — ใช้ offline ได้ + ตรวจหลายรูปแล้วดาวน์โหลด CSV · repo `retail-shelf-web`
+
+- [ ] **offline:** service worker (`public/sw.js` หรือ `src/sw.ts`) cache หน้าเว็บ + `assets/` + `agent/<เวอร์ชัน>/*`
+  - ชื่อ cache ต้องมีเวอร์ชัน agent (`AGENT_VERSION`) และลบ cache เวอร์ชันเก่าเมื่อ bump · โหลดครั้งที่สองไม่ต้องดาวน์โหลด model 43 MB ใหม่
+  - ขึ้นป้าย "ใช้ offline ได้แล้ว" เมื่อ cache ครบ · ตรรกะเลือก/ลบ cache แยกเป็นฟังก์ชันล้วน + unit test
+- [ ] **ตรวจหลายรูป:** ไฟล์ใหม่ `src/batch.ts`: เลือกหลายรูปพร้อมกัน → ตรวจทีละรูป (มีแถบความคืบหน้า) → ตาราง ชื่อไฟล์ / top-1 / จำนวนแต่ละสินค้า
+  - ปุ่ม "ดาวน์โหลด CSV" (คอลัมน์: file, product, count, max_conf) · ฟังก์ชันสร้าง CSV แยกเป็นฟังก์ชันล้วน + unit test (ระวังชื่อไฟล์ที่มี `,` หรือ `"`)
+- ตรวจ: `npm test` + `npm run build` ผ่าน · โหลดเว็บครั้งหนึ่ง → DevTools → Network → Offline → รีโหลด → ยังตรวจรูปได้ (แนบ screenshot) · แนบ CSV ตัวอย่างใน PR
+
+#### เพิ่มเติม (ถ้ามีเวลา, ใครก็ได้)
+
+- export YOLOv8s เป็น ONNX แล้วออก agent `v0.2.0` ให้เลือก model ในเว็บได้ (เปลี่ยน model = minor → `make bump-agent ALLOW_MINOR=1`) · ต้องคุยกันก่อนเพราะอาจต้องแก้ contract
+- ทำตาม issue ที่เจอจาก F1.1
 ---
 
 ## T0 — ทำแล้ว (2026-11-10)
