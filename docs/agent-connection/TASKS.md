@@ -46,6 +46,7 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
 - [ ] **T1** อัปโหลด weights: `gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection`
   (ไฟล์ best.pt จาก `MyDrive/retail-shelf-detection/runs/detect/<model>/weights/`) ทำให้ Streamlit app ใช้ได้ด้วย
   - ⛔ ติดอยู่ (2026-11-10): ไม่มี `best.pt` ในเครื่อง (ไม่มี Drive mount, ไม่อยู่ใน `~/Downloads`/`~/Documents`) ต้อง login Google Drive หรือดาวน์โหลดมาวางที่ `weights/` ก่อน
+  - ⛔ ยังติด (2026-11-10, รอบ 2): ค้นด้วย Google Drive connector แล้ว **ไม่พบ** โฟลเดอร์ `retail-shelf-detection/` หรือไฟล์ `best.pt` / `*.pt` ใดเลยใน Drive ที่ต่ออยู่ (บัญชี g.swu.ac.th) และยังไม่มี release `weights-v1` · น่าจะเทรนไว้ใน Drive ของบัญชีอื่น → ต่อ connector กับบัญชีนั้น หรือ copy `runs/detect/yolov8{n,s}/weights/best.pt` มาไว้ใน Drive นี้ แล้วสั่งทำต่อ
 - [ ] **T2** export model จริง (บน Colab หรือเครื่องที่มี dataset):
   ```bash
   python src/export_agent_assets.py --images datasets/sell-products/test/images --n 16
@@ -56,6 +57,7 @@ A, B, C แตะไฟล์คนละชุดกัน จึงทำพ�
   - แก้ `model.lock.json` ให้ชี้ไปที่ `model-yolov8n-v3` พร้อม sha256 ของทั้ง 3 ไฟล์ (ค่าอยู่ใน `model.json` หรือใช้ `shasum -a 256`)
   - ตรวจ: `npm run fetch-model` ผ่าน และ parity test ของ A ผ่านบน `sell-v3`
   - ⛔ ติดอยู่ (2026-11-10): รอ T1 (`best.pt`) และ `ROBOFLOW_API_KEY` ใน `.env` (สำหรับรูป test split ที่ใช้ทำ fixture)
+  - ⛔ ยังติด (2026-11-10, รอบ 2): รอ T1 เหมือนเดิม (ไม่มี `best.pt` · ห้ามเทรนใหม่และห้ามใช้ COCO แทน) จึงยังไม่ได้ export / release / แก้ agent
   - ทำต่อเมื่อมี `weights/yolov8n.pt` และ `.env` แล้ว (ใช้ ultralytics 8.4.208):
     ```bash
     gh release create weights-v1 weights/yolov8n.pt weights/yolov8s.pt -R ToonRz/retail-shelf-detection   # T1
