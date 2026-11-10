@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Agent Mock</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --ink:#16181d; --muted:#5f6673; --line:#e2e5ea;
+  --accent:#2f6fec; --accent-ink:#fff; --ok:#1f8a4c; --warn:#b26a00; --bad:#c23b3b;
+  --code:#f0f2f5; --chip:#eef2fb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --panel:#171a20; --ink:#e7e9ee; --muted:#9aa1ad; --line:#2a2f38;
+    --accent:#6c9bff; --accent-ink:#0f1115; --ok:#4fc283; --warn:#e2a53a; --bad:#ef6b6b;
+    --code:#1f232b; --chip:#1e2533;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --panel:#171a20; --ink:#e7e9ee; --muted:#9aa1ad; --line:#2a2f38;
+  --accent:#6c9bff; --accent-ink:#0f1115; --ok:#4fc283; --warn:#e2a53a; --bad:#ef6b6b;
+  --code:#1f232b; --chip:#1e2533;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Thai",sans-serif}
+header{padding:20px 16px 0;max-width:1080px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 14px}
+.mock{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;background:var(--warn);color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:8px 12px;font:inherit;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--ink);border-color:var(--accent);font-weight:600}
+main{max-width:1080px;margin:0 auto;padding:16px}
+section{display:none} section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.card h2{font-size:16px;margin:0 0 10px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+pre{background:var(--code);padding:10px 12px;border-radius:8px;overflow:auto;margin:8px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre code{background:none;padding:0}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px}
+.tbl{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:var(--chip);white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent)}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.log{background:var(--code);border-radius:8px;padding:10px 12px;min-height:120px;font:13px/1.6 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+.muted{color:var(--muted)}
+select{font:inherit;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+svg text{font-family:inherit}
+.flow{width:100%;height:auto}
+.note{border-left:3px solid var(--accent);padding:4px 10px;color:var(--muted);margin:8px 0}
+s{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Shelf Agent ↔ Web <span class="mock">MOCK</span></h1>
+  <p class="sub">โครงการเชื่อมต่อแบบ zcrX / zcrAgentX: repo agent แยก ออก release เอง แล้ว web pin เวอร์ชันด้วย <code>agent.version</code> และ bump มาใช้ · <b>ตัดสินแล้ว: รัน model ใน browser</b> ไม่มี server · ทุกข้อมูลในหน้านี้เป็นของปลอม ยังไม่มีอะไร implement</p>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="overview">ภาพรวม</button>
+    <button role="tab" aria-selected="false" data-tab="release">Release &amp; Bump</button>
+    <button role="tab" aria-selected="false" data-tab="detect">ทดลองตรวจจับ</button>
+    <button role="tab" aria-selected="false" data-tab="contract">Contract</button>
+    <button role="tab" aria-selected="false" data-tab="decisions">การตัดสินใจ</button>
+  </nav>
+</header>
+
+<main>
+<!-- ============ OVERVIEW ============ -->
+<section id="overview" class="on">
+  <div class="card">
+    <h2>สองลูป: ตอน build (release → pin → deploy static) กับตอนใช้งาน (ทุกอย่างอยู่ใน browser)</h2>
+    <svg class="flow" viewBox="0 0 1000 330" role="img" aria-label="Release and in-browser runtime flow">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--muted)"/></marker>
+      </defs>
+      <text x="10" y="20" fill="var(--muted)" font-size="13" font-weight="600">BUILD TIME</text>
+      <g font-size="13">
+        <rect x="10" y="32" width="200" height="74" rx="9" fill="var(--panel)" stroke="var(--accent)"/>
+        <text x="24" y="56" fill="var(--ink)" font-weight="700">retail-shelf-agent</text>
+        <text x="24" y="76" fill="var(--muted)">JS: preprocess + NMS</text>
+        <text x="24" y="94" fill="var(--muted)">+ model.onnx · tag v0.3.0</text>
+
+        <rect x="270" y="32" width="210" height="74" rx="9" fill="var(--panel)" stroke="var(--line)"/>
+        <text x="284" y="56" fill="var(--ink)" font-weight="700">GitHub Release</text>
+        <text x="284" y="76" fill="var(--muted)">shelf-agent.js, model.onnx, ort/</text>
+        <text x="284" y="94" fill="var(--muted)">SHA256SUMS + manifest.json</text>
+
+        <rect x="540" y="32" width="210" height="74" rx="9" fill="var(--panel)" stroke="var(--line)"/>
+        <text x="554" y="56" fill="var(--ink)" font-weight="700">make bump-agent</text>
+        <text x="554" y="76" fill="var(--muted)">ดึง + verify checksum</text>
+        <text x="554" y="94" fill="var(--muted)">→ public/agent/ → npm test</text>
+
+        <rect x="810" y="32" width="180" height="74" rx="9" fill="var(--panel)" stroke="var(--accent)"/>
+        <text x="824" y="56" fill="var(--ink)" font-weight="700">retail-shelf-web</text>
+        <text x="824" y="76" fill="var(--muted)">agent.version = v0.3.0</text>
+        <text x="824" y="94" fill="var(--muted)">deploy → GitHub Pages</text>
+      </g>
+      <g stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)">
+        <line x1="210" y1="69" x2="266" y2="69"/><line x1="480" y1="69" x2="536" y2="69"/><line x1="750" y1="69" x2="806" y2="69"/>
+      </g>
+      <text x="215" y="62" fill="var(--muted)" font-size="11">CI</text>
+      <text x="486" y="62" fill="var(--muted)" font-size="11">gh</text>
+      <text x="756" y="62" fill="var(--muted)" font-size="11">PR</text>
+
+      <line x1="10" y1="140" x2="990" y2="140" stroke="var(--line)" stroke-dasharray="4 4"/>
+      <text x="10" y="168" fill="var(--muted)" font-size="13" font-weight="600">RUNTIME (ฟรี ไม่มี server)</text>
+      <g font-size="13">
+        <rect x="810" y="182" width="180" height="100" rx="9" fill="var(--panel)" stroke="var(--accent)"/>
+        <text x="824" y="206" fill="var(--ink)" font-weight="700">GitHub Pages</text>
+        <text x="824" y="226" fill="var(--muted)">ไฟล์ static อย่างเดียว</text>
+        <text x="824" y="244" fill="var(--muted)">index.html + /agent/v0.3.0/</text>
+        <text x="824" y="262" fill="var(--muted)">ไม่หลับ ไม่มี cold start</text>
+
+        <rect x="300" y="170" width="380" height="140" rx="9" fill="var(--panel)" stroke="var(--line)"/>
+        <text x="314" y="194" fill="var(--ink)" font-weight="700">Browser ของผู้ใช้</text>
+        <rect x="314" y="206" width="170" height="90" rx="7" fill="var(--code)"/>
+        <text x="326" y="228" fill="var(--ink)" font-weight="600">หน้าเว็บ (UI)</text>
+        <text x="326" y="248" fill="var(--muted)">อัปรูป / กล้อง</text>
+        <text x="326" y="266" fill="var(--muted)">วาดกล่อง + นับสินค้า</text>
+        <rect x="496" y="206" width="170" height="90" rx="7" fill="var(--code)"/>
+        <text x="508" y="228" fill="var(--ink)" font-weight="600">shelf-agent.js</text>
+        <text x="508" y="248" fill="var(--muted)">onnxruntime-web</text>
+        <text x="508" y="266" fill="var(--muted)">WebGPU → WASM</text>
+        <text x="508" y="284" fill="var(--muted)">YOLOv8n 110 คลาส</text>
+
+        <rect x="10" y="212" width="200" height="60" rx="9" fill="var(--panel)" stroke="var(--line)"/>
+        <text x="24" y="236" fill="var(--ink)" font-weight="700">รูปชั้นวาง / กล้อง</text>
+        <text x="24" y="256" fill="var(--muted)">ไม่ถูกอัปโหลดไปไหน</text>
+      </g>
+      <g stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)">
+        <line x1="210" y1="242" x2="310" y2="242"/>
+        <path d="M806,232 L684,232" fill="none"/>
+        <path d="M900,106 L900,178" fill="none" stroke-dasharray="3 3"/>
+      </g>
+      <g stroke="var(--muted)" stroke-width="1.5">
+        <line x1="484" y1="244" x2="496" y2="244" marker-end="url(#ar)"/>
+      </g>
+      <text x="692" y="224" fill="var(--muted)" font-size="11">โหลดครั้งแรก</text>
+      <text x="692" y="250" fill="var(--muted)" font-size="11">แล้ว cache ไว้</text>
+      <text x="906" y="148" fill="var(--muted)" font-size="11">เสิร์ฟเฉพาะ release ที่ pin</text>
+    </svg>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>เทียบกับ zcrX / zcrAgentX</h2>
+      <div class="tbl"><table>
+        <tr><th>zcrX ทำอยู่</th><th>ฝั่ง shelf จะเป็น</th></tr>
+        <tr><td><code>zcrAgentX</code> repo</td><td><code>retail-shelf-agent</code> (JS library + model จาก repo นี้)</td></tr>
+        <tr><td><code>agent.version</code> = v1.5.8</td><td><code>agent.version</code> ใน repo web</td></tr>
+        <tr><td><code>make bump-zcragentx</code></td><td><code>make bump-agent</code> (patch อัตโนมัติ, minor ต้องอนุญาต)</td></tr>
+        <tr><td><code>make fetch-zcragentx-release</code></td><td><code>make fetch-agent-release</code> → <code>public/agent/&lt;ver&gt;/</code></td></tr>
+        <tr><td>SHA256SUMS + Sigstore</td><td>SHA256SUMS ตอน bump + browser ตรวจ sha256 ของ model ซ้ำ</td></tr>
+        <tr><td>agent ติดตั้งบนเครื่องลูกค้า</td><td>agent ถูกโหลดเข้า browser — <b>ไม่มี fleet, enroll, heartbeat</b></td></tr>
+      </table></div>
+    </div>
+    <div class="card">
+      <h2>แบ่งหน้าที่ของ 3 repo</h2>
+      <p><b>retail-shelf-detection</b> (repo นี้) — เทรน/ประเมินเหมือนเดิม ผลลัพธ์คือ <code>best.pt</code> → export เป็น <code>.onnx</code></p>
+      <p><b>retail-shelf-agent</b> — library JS ที่โหลด model, letterbox 640, รัน, NMS แล้วคืนกล่อง · ออก release ตาม tag</p>
+      <p><b>retail-shelf-web</b> — หน้าเว็บ static, pin เวอร์ชัน agent, เรียก agent ผ่าน API ของ library อย่างเดียว (แท็บ Contract)</p>
+      <p class="note">ค่าใช้จ่าย 0 บาท: GitHub Releases + GitHub Pages ฟรีสำหรับ repo public · ไม่มี server ให้หลับตอนพรีเซนต์</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELEASE & BUMP ============ -->
+<section id="release">
+  <div class="grid">
+    <div class="card">
+      <h2>Releases ของ retail-shelf-agent</h2>
+      <div class="tbl"><table id="relTable">
+        <thead><tr><th>Tag</th><th>วันที่</th><th>Model</th><th>หมายเหตุ</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="muted" style="margin-top:10px">pin ปัจจุบันใน web: <code id="pinNow">v0.2.1</code></p>
+    </div>
+    <div class="card">
+      <h2>จำลอง <code>make bump-agent</code></h2>
+      <div class="row" style="margin-bottom:8px">
+        <select id="bumpTarget"></select>
+        <label class="muted"><input type="checkbox" id="allowMinor"> ALLOW_MINOR=1</label>
+        <button class="btn" id="bumpBtn">Run</button>
+      </div>
+      <div class="log" id="bumpLog">กด Run เพื่อดูขั้นตอน</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>assets ที่ release หนึ่งต้องมี (สัญญาของ release)</h2>
+<pre><code>shelf-agent.js                 # ES module: load() / detect()
+model_yolov8n_v3.onnx          # export จาก best.pt ของ repo นี้ (~12 MB)
+labels.json                    # 110 ชื่อคลาส ตามลำดับ index
+ort/ort-wasm-simd.wasm         # onnxruntime-web pin ไว้ใน release ไม่พึ่ง CDN
+ort/ort-wasm-simd.jsep.wasm    # สำหรับ WebGPU
+manifest.json                  # ดูด้านล่าง
+SHA256SUMS                     # ทุกไฟล์ข้างบน</code></pre>
+<pre><code>// manifest.json
+{
+  "version": "v0.3.0",
+  "contract": "shelf-agent-js/1",
+  "model": { "file": "model_yolov8n_v3.onnx", "name": "yolov8n", "dataset": "sell-products v3",
+             "classes": 110, "imgsz": 640, "conf": 0.25, "iou": 0.7, "sha256": "9f2c…" },
+  "ort": "onnxruntime-web 1.x (exact version)"
+}</code></pre>
+    <p class="muted">bump ปฏิเสธ release ที่ asset ไม่ครบ, checksum ไม่ตรง, <code>classes</code> ไม่ใช่ 110 หรือ <code>contract</code> ไม่ใช่ตัวที่ web รองรับ — แล้วคืน <code>agent.version</code> เดิม</p>
+  </div>
+</section>
+
+<!-- ============ DETECT ============ -->
+<section id="detect">
+  <div class="grid">
+    <div class="card">
+      <h2>ตรวจจับในเครื่องนี้</h2>
+      <div class="row" style="margin-bottom:10px">
+        <select id="backend">
+          <option value="webgpu">WebGPU (ถ้ามี)</option>
+          <option value="wasm">WASM (ทุก browser)</option>
+        </select>
+        <button class="btn" id="detectBtn">ใช้รูปตัวอย่าง</button>
+        <span class="pill" id="agentPill">agent v0.2.1</span>
+      </div>
+      <svg id="shelf" viewBox="0 0 640 400" style="width:100%;border-radius:8px;background:var(--code)" role="img" aria-label="Mock shelf image">
+        <rect x="0" y="130" width="640" height="10" fill="var(--line)"/>
+        <rect x="0" y="270" width="640" height="10" fill="var(--line)"/>
+        <g id="products"></g>
+        <g id="boxes"></g>
+      </svg>
+      <p class="muted" id="detectStatus">ยังไม่ได้รัน</p>
+    </div>
+    <div class="card">
+      <h2>เกิดอะไรขึ้นใน browser</h2>
+      <div class="log" id="wireLog">—</div>
+      <p class="note">หลังโหลดครั้งแรก ตัดเน็ตแล้วยังใช้ได้ (model ถูก cache) · ไม่มี request ไหนส่งรูปออกไป</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTRACT ============ -->
+<section id="contract">
+  <div class="card">
+    <h2>shelf-agent-js/1 (ร่าง)</h2>
+    <p class="muted">contract ไม่ใช่ HTTP แล้ว แต่เป็น API ของ library ที่ web เรียก · web รู้จัก agent ผ่านแค่ 2 ฟังก์ชันนี้กับ manifest</p>
+<pre><code>// retail-shelf-web
+import { load } from `/agent/${AGENT_VERSION}/shelf-agent.js`;   // AGENT_VERSION มาจาก agent.version ตอน build
+
+const agent = await load({
+  baseUrl: `/agent/${AGENT_VERSION}/`,   // หา manifest.json, model, ort/ จากที่นี่
+  backend: "webgpu",                    // ถ้าไม่มี ตกไป "wasm" เอง
+});
+// load() ตรวจ: manifest.version === AGENT_VERSION, contract === "shelf-agent-js/1",
+//              sha256(model) === manifest.model.sha256  — ไม่ตรงคือ throw
+
+const result = await agent.detect(imageBitmap, { conf: 0.25 });</code></pre>
+<pre><code>// result
+{
+  "version": "v0.3.0", "model_sha256": "9f2c…", "backend": "webgpu",
+  "latency_ms": 38,
+  "boxes": [
+    { "cls": "pepsi",     "conf": 0.97, "xyxy": [36, 22, 118, 124] },
+    { "cls": "lays-salt", "conf": 0.94, "xyxy": [140, 30, 236, 124] }
+  ]
+}</code></pre>
+    <p class="muted">พิกัด <code>xyxy</code> เป็น pixel ของรูปต้นฉบับ (agent แก้ letterbox กลับให้แล้ว) · ค่า conf/iou ตั้งต้นเท่ากับที่ใช้ประเมินใน repo นี้</p>
+  </div>
+</section>
+
+<!-- ============ DECISIONS ============ -->
+<section id="decisions">
+  <div class="card">
+    <h2>การตัดสินใจ</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>เรื่อง</th><th>เลือก</th><th>สถานะ</th><th>เหตุผล</th></tr></thead>
+      <tbody>
+        <tr><td>agent รันที่ไหน</td><td><b>ใน browser</b> (onnxruntime-web)</td><td><span class="pill ok">ตัดสินแล้ว</span></td><td>ฟรี 100%, ไม่มี server ให้หลับตอน demo, รูปไม่ออกจากเครื่อง</td></tr>
+        <tr><td>ภาษาของ agent</td><td>JS/TS (+ script Python สำหรับ export onnx)</td><td><span class="pill ok">ตามมาจากข้อบน</span></td><td>browser รันได้แค่ JS/WASM</td></tr>
+        <tr><td>model</td><td>YOLOv8n</td><td><span class="pill ok">ตัดสินแล้ว</span></td><td>ผลใน README: v8n เร็วกว่าเกือบ 2× และ mAP ต่างแค่ 0.76 pp · ไฟล์เล็กพอโหลดผ่านเว็บ</td></tr>
+        <tr><td>model อยู่ใน release ไหน</td><td>ใน release ของ agent เลย</td><td><span class="pill ok">ตัดสินแล้ว</span></td><td>pin ตัวเดียว, กันโค้ด preprocess/NMS กับ model คนละเวอร์ชัน</td></tr>
+        <tr><td>host เว็บ</td><td>GitHub Pages</td><td><span class="pill ok">ตัดสินแล้ว</span></td><td>ฟรี, deploy จาก repo ด้วย Actions · Vercel ก็ฟรีถ้าอยากได้ preview ต่อ PR</td></tr>
+        <tr><td>เซ็น release</td><td>SHA256SUMS อย่างเดียว</td><td><span class="pill ok">ตัดสินแล้ว</span></td><td>พอสำหรับโปรเจกต์ · Sigstore แบบ zcrAgentX เพิ่มทีหลังได้</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2>ตัวเลือกที่ไม่เอา</h2>
+      <p><s>Edge (agent ที่ร้าน)</s> — ต้องมีเครื่องจริง + fleet, enroll, heartbeat, หลาย platform · เกินขอบเขตงานส่ง</p>
+      <p><s>Sidecar บน Hugging Face Spaces / Render</s> — ฟรีแต่ server หลับเมื่อว่าง ปลุกครั้งแรกรอนาน · Render free RAM น้อยเกิน torch</p>
+      <p class="note">ถ้าวันหลังต้องการ edge จริง: release เดียวกันยังใช้ได้ แค่ห่อ shelf-agent.js ด้วย runtime อื่น</p>
+    </div>
+    <div class="card">
+      <h2>ความเสี่ยงที่รู้อยู่</h2>
+      <ul>
+        <li>มือถือ/เครื่องเก่าที่ไม่มี WebGPU จะช้า (WASM) — ควรวัดจริงก่อนพรีเซนต์</li>
+        <li>ต้องเขียน letterbox + NMS ใน JS ให้ได้ผลเท่ากับ Ultralytics — ทดสอบโดยเทียบกล่องกับ <code>results/predictions_yolov8n.jsonl</code></li>
+        <li>โหลดครั้งแรก ~12 MB + wasm — แสดง progress bar</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+// Tabs
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+});
+
+// ---- Releases (fake) ----
+const releases = [
+  { tag: 'v0.3.0', date: '2026-11-08', model: 'yolov8n v3', note: 'WebGPU backend, contract shelf-agent-js/1' },
+  { tag: 'v0.2.2', date: '2026-11-02', model: 'yolov8n v3', note: 'แก้ NMS ซ้อนกล่อง' },
+  { tag: 'v0.2.1', date: '2026-10-25', model: 'yolov8n v3', note: '' },
+  { tag: 'v0.2.0', date: '2026-10-18', model: 'yolov8n v3', note: 'WASM อย่างเดียว' },
+];
+let pin = 'v0.2.1';
+const minor = t => t.split('.').slice(0, 2).join('.');
+function renderReleases() {
+  document.querySelector('#relTable tbody').innerHTML = releases.map(r =>
+    `<tr><td><code>${r.tag}</code></td><td>${r.date}</td><td>${r.model}</td><td class="muted">${r.note}</td>
+     <td>${r.tag === pin ? '<span class="pill ok">pinned</span>' : ''}</td></tr>`).join('');
+  document.getElementById('pinNow').textContent = pin;
+  document.getElementById('agentPill').textContent = 'agent ' + pin;
+  document.getElementById('bumpTarget').innerHTML =
+    '<option value="">(ล่าสุดที่เป็น patch)</option>' + releases.map(r => `<option>${r.tag}</option>`).join('');
+}
+renderReleases();
+
+document.getElementById('bumpBtn').onclick = async () => {
+  const btn = document.getElementById('bumpBtn'), log = document.getElementById('bumpLog');
+  const allow = document.getElementById('allowMinor').checked;
+  const target = document.getElementById('bumpTarget').value ||
+    (releases.find(r => minor(r.tag) === minor(pin)) || {}).tag;
+  btn.disabled = true; log.textContent = '';
+  const say = (s, cls) => new Promise(res => setTimeout(() => {
+    log.innerHTML += (cls ? `<span class="${cls}">${s}</span>` : s) + '\n'; res();
+  }, 380));
+  await say(`$ make bump-agent${allow ? ' ALLOW_MINOR=1' : ''}`);
+  await say(`pin ปัจจุบัน ${pin} → เป้าหมาย ${target}`);
+  if (target === pin) { await say('อยู่ที่ล่าสุดแล้ว ไม่มีอะไรเปลี่ยน', 'muted'); btn.disabled = false; return; }
+  if (target < pin) {
+    await say(`ปฏิเสธ: ห้าม bump ถอยหลัง (${target} < ${pin})`, 'bad'); btn.disabled = false; return;
+  }
+  if (minor(target) !== minor(pin) && !allow) {
+    await say(`ปฏิเสธ: ${target} ข้าม minor (${minor(pin)} → ${minor(target)}) ต้องใส่ ALLOW_MINOR=1`, 'bad');
+    btn.disabled = false; return;
+  }
+  await say(`gh release download ${target} -R ToonRz/retail-shelf-agent -D public/agent/${target}/`);
+  await say('ตรวจ SHA256SUMS … 7/7 ไฟล์ตรง', 'ok');
+  await say('ตรวจ manifest.json: contract shelf-agent-js/1 ✓ classes 110 ✓ imgsz 640 ✓', 'ok');
+  await say(`เขียน agent.version = ${target} · ลบ public/agent/${pin}/`);
+  await say('npm test  (pin ตรงกับโฟลเดอร์, detect() บนรูป fixture ได้กล่องตรงกับ predictions_yolov8n.jsonl) … PASS', 'ok');
+  await say('เสร็จ — ไม่ได้ commit ให้ เปิด PR เองหลังดู diff', 'muted');
+  pin = target; renderReleases(); btn.disabled = false;
+};
+
+// ---- Detect (fake) ----
+const items = [
+  { cls: 'pepsi', x: 30, y: 20, w: 80, h: 105, c: '#2b5fb8' },
+  { cls: 'pepsi', x: 120, y: 20, w: 80, h: 105, c: '#2b5fb8' },
+  { cls: 'lays-salt', x: 215, y: 30, w: 100, h: 95, c: '#e3b43a' },
+  { cls: 'taro-original', x: 335, y: 40, w: 90, h: 85, c: '#c9533e' },
+  { cls: 'mama-pork', x: 445, y: 55, w: 120, h: 70, c: '#d98a2b' },
+  { cls: 'lays-salt', x: 40, y: 165, w: 100, h: 100, c: '#e3b43a' },
+  { cls: 'mama-pork', x: 160, y: 190, w: 120, h: 75, c: '#d98a2b' },
+  { cls: 'pepsi', x: 300, y: 160, w: 80, h: 105, c: '#2b5fb8' },
+  { cls: 'taro-original', x: 400, y: 180, w: 90, h: 85, c: '#c9533e' },
+  { cls: 'taro-original', x: 510, y: 180, w: 90, h: 85, c: '#c9533e' },
+  { cls: 'mama-pork', x: 60, y: 315, w: 120, h: 70, c: '#d98a2b' },
+  { cls: 'pepsi', x: 210, y: 290, w: 80, h: 100, c: '#2b5fb8' },
+];
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const prodG = document.getElementById('products'), boxG = document.getElementById('boxes');
+items.forEach(i => prodG.appendChild(el('rect', { x: i.x, y: i.y, width: i.w, height: i.h, rx: 6, fill: i.c, opacity: .75 })));
+
+let loaded = false;
+document.getElementById('detectBtn').onclick = async () => {
+  const be = document.getElementById('backend').value;
+  const log = document.getElementById('wireLog'), st = document.getElementById('detectStatus');
+  const btn = document.getElementById('detectBtn');
+  btn.disabled = true; boxG.innerHTML = ''; log.textContent = '';
+  const step = (s) => new Promise(r => setTimeout(() => { log.textContent += s + '\n'; r(); }, 420));
+  st.textContent = 'กำลังรัน…';
+  if (!loaded) {
+    await step(`import /agent/${pin}/shelf-agent.js`);
+    await step(`fetch manifest.json → version ${pin} ✓ contract shelf-agent-js/1 ✓`);
+    await step(`fetch model_yolov8n_v3.onnx (12.1 MB) … sha256 ตรง manifest ✓`);
+    await step(`onnxruntime-web: backend = ${be}`);
+    loaded = true;
+  } else {
+    await step('model อยู่ใน memory แล้ว ข้ามการโหลด');
+  }
+  await step('letterbox รูป → 640×640, normalize 0–1');
+  const ms = be === 'webgpu' ? 38 : 142;
+  await step(`session.run() … ${ms} ms  (${be})`);
+  await step('NMS iou 0.7, conf ≥ 0.25 → แก้ letterbox กลับเป็น pixel รูปจริง');
+  items.forEach((i, n) => {
+    const conf = (0.88 + ((n * 37) % 11) / 100).toFixed(2);
+    boxG.appendChild(el('rect', { x: i.x - 3, y: i.y - 3, width: i.w + 6, height: i.h + 6, fill: 'none', stroke: '#22c55e', 'stroke-width': 2.5 }));
+    const lbl = `${i.cls} ${conf}`;
+    boxG.appendChild(el('rect', { x: i.x - 3, y: i.y - 19, width: lbl.length * 6.6 + 8, height: 16, fill: '#22c55e' }));
+    const t = el('text', { x: i.x + 1, y: i.y - 7, fill: '#06200f', 'font-size': 11, 'font-weight': 700 }); t.textContent = lbl; boxG.appendChild(t);
+  });
+  const counts = items.reduce((m, i) => (m[i.cls] = (m[i.cls] || 0) + 1, m), {});
+  await step(`detect() คืน ${items.length} boxes → UI วาดกล่อง · network requests ที่มีรูป: 0`);
+  st.textContent = `เจอ ${items.length} ชิ้น · ` + Object.entries(counts).map(([k, v]) => `${k} ×${v}`).join(', ') + ` · ${ms} ms (ข้อมูลปลอม)`;
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>
