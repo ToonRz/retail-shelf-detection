@@ -9,8 +9,11 @@
 
 วิธีได้ไฟล์มา (เลือกทางใดทางหนึ่ง)
 
+0. ไม่ต้องทำอะไร ถ้ามี GitHub Release `weights-v1` ที่แนบ `yolov8n.pt` / `yolov8s.pt` ไว้แล้ว
+   แอปจะดาวน์โหลดมาไว้ในโฟลเดอร์นี้เองตอนเปิดครั้งแรก (README ข้อ 8.2)
+
 1. ดาวน์โหลด `best.pt` ของแต่ละโมเดลจาก Google Drive แล้วเปลี่ยนชื่อตามตารางมาวางในโฟลเดอร์นี้
 2. รัน notebook จนจบ: `results.zip` จะมี `weights/yolov8n.pt` และ `weights/yolov8s.pt` มาให้ แตกไฟล์ที่ root ของ repo
 
-`.gitignore` ยกเว้น `weights/*.pt` ไว้ จึง commit สองไฟล์นี้ได้ (จำเป็นถ้าจะ deploy บน Streamlit Community Cloud)
+`.gitignore` ยกเว้น `weights/*.pt` ไว้ จึง commit สองไฟล์นี้ได้ แต่ถ้าใช้ Release ก็ไม่จำเป็น
 ไฟล์ `*.pt` ที่อื่นใน repo ยังถูก ignore เหมือนเดิม

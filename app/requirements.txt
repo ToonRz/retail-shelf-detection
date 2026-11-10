@@ -1,0 +1,7 @@
+# Dependencies for deploying app/streamlit_app.py (Streamlit Community Cloud reads the
+# requirements file next to the entrypoint first). CPU-only torch keeps the install small.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+ultralytics>=8.3,<9
+streamlit>=1.50

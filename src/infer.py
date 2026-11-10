@@ -23,14 +23,55 @@ DET_COLS = ["class", "conf", "x1", "y1", "x2", "y2"]
 VIDEO_CODECS = [("vp09", ".webm"), ("avc1", ".mp4"), ("mp4v", ".mp4")]
 
 
-def find_weights(model: str, root: str | Path = ROOT) -> Path | None:
-    """weights/<model>.pt first (committed for the demo), then the training run."""
+N_CLASSES = 110       # classes of the trained model (Sell Products dataset)
+# Default download location of the trained weights: assets of the GitHub release
+# `weights-v1` (upload best.pt of each model there as yolov8n.pt / yolov8s.pt).
+# Override per model with the environment variable WEIGHTS_URL_YOLOV8N / _YOLOV8S
+# (on Streamlit Community Cloud: a root-level entry in the app's Secrets).
+RELEASE_URL = "https://github.com/ToonRz/retail-shelf-detection/releases/download/weights-v1/{model}.pt"
+
+
+def weights_url(model: str) -> str:
+    import os
+
+    return os.environ.get(f"WEIGHTS_URL_{model.upper()}") or RELEASE_URL.format(model=model)
+
+
+def download_weights(model: str, dst: Path, timeout: float = 60) -> Path | None:
+    """Download the trained weights to dst. Returns None (and leaves nothing behind)
+    when the URL does not exist yet or the network is unavailable."""
+    import urllib.request
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_suffix(".part")
+    try:
+        req = urllib.request.Request(weights_url(model), headers={"User-Agent": "retail-shelf-detection"})
+        with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, "wb") as f:
+            while chunk := r.read(1 << 20):
+                f.write(chunk)
+    except Exception as e:  # 404 before the release exists, no network, ...
+        print(f"[infer] could not download {model} weights from {weights_url(model)}: {e}")
+        tmp.unlink(missing_ok=True)
+        return None
+    if tmp.stat().st_size < 1_000_000:  # an HTML error page, not a checkpoint
+        tmp.unlink()
+        return None
+    tmp.replace(dst)
+    return dst
+
+
+def find_weights(model: str, root: str | Path = ROOT, download: bool = True) -> Path | None:
+    """Trained weights of `model`, in this order:
+    1. weights/<model>.pt              (copied from Drive or committed)
+    2. runs/detect/<model>/weights/best.pt   (the training run of the notebook)
+    3. downloaded once from weights_url(model) into weights/<model>.pt
+    """
     root = Path(root)
     for p in (root / "weights" / f"{model}.pt",
               root / "runs" / "detect" / model / "weights" / "best.pt"):
         if p.is_file():
             return p
-    return None
+    return download_weights(model, root / "weights" / f"{model}.pt") if download else None
 
 
 def load_model(weights: str | Path):

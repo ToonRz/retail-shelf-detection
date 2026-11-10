@@ -98,7 +98,7 @@
 และจะถูกบันทึกเป็น `results/class_samples.jpg` เมื่อรัน notebook รอบถัดไป (ต้องมี dataset ซึ่งไม่ได้เก็บไว้ใน repo)
 จำนวนภาพ/กล่องต่อ split และการกระจายของคลาสอยู่ใน "ผล EDA" ของข้อ 5
 
-ไม่มีการ commit ตัว dataset หรือ API key ลง repo ส่วน weights เก็บเฉพาะ `weights/<model>.pt` สำหรับ prototype (ดู `.gitignore`)
+ไม่มีการ commit ตัว dataset หรือ API key ลง repo ส่วนโมเดลที่เทรนแล้วแจกผ่าน GitHub Release `weights-v1` (ข้อ 8.1)
 
 ---
 
@@ -441,26 +441,77 @@ Confusion matrix ที่ conf 0.25 ครบ 110 คลาส (`results/confus
 > ภาพด้านบนเป็น **ภาพทดสอบหน้าจอ** ที่ถ่ายด้วย weights COCO มาตรฐาน (`yolov8n.pt`, 80 คลาส) เพราะ `best.pt` ของโปรเจกต์ยังไม่ได้อยู่ใน repo
 > ผลในภาพจึงเป็นคลาสของ COCO ไม่ใช่สินค้า เมื่อวาง `best.pt` ใน `weights/` แล้วให้ถ่ายภาพหน้าจอใหม่ด้วยรูปสินค้าจริงมาแทนไฟล์นี้
 
-**วิธีรัน**
+### 8.1 เรียกโมเดลที่เทรนมาใช้อย่างไร
+
+แอปใช้ไฟล์ `best.pt` ที่ notebook เทรนไว้ (epoch ที่ได้ mAP บน valid ดีที่สุด ตัวเดียวกับที่ใช้ประเมินในข้อ 7)
+ไฟล์นี้เก็บทั้ง weights และรายชื่อ 110 คลาส จึงไม่ต้องตั้งค่าอะไรเพิ่ม `src/infer.py: find_weights` หาไฟล์ตามลำดับนี้
+
+| ลำดับ | ที่อยู่ | ใช้เมื่อ |
+|---|---|---|
+| 1 | `weights/<model>.pt` | copy `best.pt` จาก Drive มาไว้เอง หรือ commit ไว้ใน repo |
+| 2 | `runs/detect/<model>/weights/best.pt` | รันแอปบนเครื่องเดียวกับที่เทรน |
+| 3 | ดาวน์โหลดครั้งแรกจาก GitHub Release `weights-v1` แล้วเก็บเป็น `weights/<model>.pt` | **deploy เป็นเว็บ** (ไม่ต้อง commit ไฟล์โมเดล) |
+| 4 | อัปโหลดไฟล์ `.pt` ในแถบด้านซ้ายของแอป | ลองโมเดลอื่นชั่วคราว |
+
+ลิงก์ในลำดับ 3 คือ `https://github.com/ToonRz/retail-shelf-detection/releases/download/weights-v1/<model>.pt`
+ถ้าจะใช้ลิงก์อื่น ให้ตั้ง environment variable `WEIGHTS_URL_YOLOV8N` / `WEIGHTS_URL_YOLOV8S`
+(บน Streamlit Community Cloud ใส่ไว้ใน Secrets)
+
+ขั้นตอนตั้งแต่โหลดโมเดลจนได้ผล (ทุกโหมดใช้ฟังก์ชันชุดเดียวกัน):
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("weights/yolov8n.pt")            # load_model(): ได้ model.names = 110 ชื่อสินค้า
+r = model.predict(image, conf=0.25, iou=0.7, imgsz=640)[0]   # predict_image(): resize 640, NMS
+r.boxes.xyxy, r.boxes.conf, r.boxes.cls        # กรอบ (พิกเซล), confidence, เลขคลาส -> r.names[cls]
+r.plot()                                       # ภาพที่วาดกรอบและชื่อสินค้าแล้ว
+```
+
+* แอปเก็บโมเดลไว้ในหน่วยความจำด้วย `st.cache_resource` จึงโหลดแค่ครั้งแรก การเปลี่ยน slider ไม่ต้องโหลดใหม่
+* top-1 ของรูปคือกล่องที่ confidence สูงสุดที่ ≥ threshold ใช้กฎเดียวกับ accuracy ระดับรูปในข้อ 6.2
+* วิดีโอ (`annotate_video`) อ่านทีละเฟรมด้วย OpenCV เรียก `model.predict` ทุก ๆ n เฟรม แล้วเขียนเฟรมที่วาดกรอบเป็นไฟล์ `.webm`
+* ถ้าไฟล์ที่โหลดมาไม่ได้มี 110 คลาส (เช่นเผลอใช้ `yolov8n.pt` ของ COCO) แอปจะแสดงคำเตือน
+
+### 8.2 วิธีใช้งาน
+
+**ครั้งแรก: อัปโหลดโมเดลขึ้น GitHub Release** (ทำครั้งเดียว แล้วทุกเครื่องและเว็บที่ deploy จะดาวน์โหลดเอง)
+
+1. ดาวน์โหลด `best.pt` จาก `MyDrive/retail-shelf-detection/runs/detect/yolov8n/weights/` และ `.../yolov8s/weights/`
+2. เปลี่ยนชื่อเป็น `yolov8n.pt` และ `yolov8s.pt`
+3. บน GitHub เปิด *Releases → Draft a new release* ตั้ง tag เป็น `weights-v1` แล้วลากสองไฟล์ไปใส่ในช่อง assets จากนั้นกด *Publish release*
+
+**รันบนเครื่องตัวเอง**
 
 ```bash
 pip install -r requirements-app.txt
-# วาง best.pt ของแต่ละโมเดลเป็น weights/yolov8n.pt และ weights/yolov8s.pt (ดู weights/README.md)
-streamlit run app/streamlit_app.py
+streamlit run app/streamlit_app.py      # เปิด http://localhost:8501
 ```
 
-ถ้ายังไม่มีไฟล์ใน `weights/` แอปจะให้อัปโหลดไฟล์ `.pt` ในแถบด้านซ้ายแทน ใช้กับวิดีโอโดยไม่เปิดเว็บ:
+เมื่อเปิดหน้าเว็บ ให้เลือกโมเดลที่แถบซ้าย (YOLOv8n เร็วกว่า, YOLOv8s กรอบแนบกว่า) แล้วเลือกแท็บ
+**รูปภาพ** (อัปโหลดรูปสินค้า), **วิดีโอ** (อัปโหลดคลิปแล้วกด *เริ่มตรวจจับ*) หรือ **กล้อง** (ถ่ายภาพ)
+ถ้าไม่เจอสินค้า ให้ลด *Confidence threshold* ลง
+
+**Deploy เป็นเว็บสาธารณะ (Streamlit Community Cloud, ฟรี)**
+
+1. merge PR นี้เข้า `main` และอัปโหลดโมเดลขึ้น Release ตามด้านบน
+2. เข้า <https://share.streamlit.io> ล็อกอินด้วย GitHub แล้วกด *Create app → Deploy a public app from GitHub*
+3. เลือก repo `ToonRz/retail-shelf-detection`, branch `main`, main file `app/streamlit_app.py` แล้วกด *Deploy*
+   ระบบติดตั้ง `app/requirements.txt` (torch แบบ CPU) และ `packages.txt` (ไลบรารีที่ OpenCV ต้องใช้) ให้เอง
+4. ได้ลิงก์ `https://<ชื่อแอป>.streamlit.app` ไปเปิดบนมือถือหรือใช้สาธิตตอนนำเสนอได้ ครั้งแรกจะช้าเพราะต้องดาวน์โหลดโมเดล
+
+**ใช้จาก command line (ไม่ต้องเปิดเว็บ)**
 
 ```bash
+python src/infer.py --source product.jpg --model yolov8n
 python src/infer.py --source clip.mp4 --model yolov8n --stride 2 --out clip_pred.mp4
 ```
 
-**Deploy (ไม่บังคับ, ยังไม่ได้ทดสอบ):** commit `weights/*.pt` แล้วสร้างแอปบน [Streamlit Community Cloud](https://share.streamlit.io)
-โดยชี้ไปที่ `app/streamlit_app.py` และให้ติดตั้งจาก `requirements-app.txt`
-
-**ที่ทดสอบแล้ว** (Python 3.13, CPU, ultralytics 8.4.208, streamlit 1.67, weights COCO): หน้าแจ้งเตือนเมื่อไม่มี weights,
-อัปโหลด weights, ตรวจจับจากรูป 2 รูป, ปรับ confidence แล้วผลเปลี่ยน, วิดีโอ 30 เฟรม (ได้ไฟล์ VP9 `.webm` ที่เล่นในเบราว์เซอร์ได้)
-และแท็บกล้องแสดงผล **ยังไม่ได้ทดสอบ** กับ `best.pt` 110 คลาสของโปรเจกต์ และยังไม่ได้ลองถ่ายจากกล้องจริง
+**ที่ทดสอบแล้ว** (Python 3.13, CPU, ultralytics 8.4.208, streamlit 1.67) ใช้ weights COCO แทนเพราะยังไม่มี `best.pt` ใน repo:
+หน้าแจ้งเตือนเมื่อไม่มีโมเดล, ดาวน์โหลดโมเดลจากลิงก์อัตโนมัติ (และกรณีลิงก์ยังไม่มีได้ 404 แล้วขึ้นวิธีแก้),
+คำเตือนเมื่อจำนวนคลาสไม่ใช่ 110, อัปโหลด weights, ตรวจจับจากรูป, ปรับ confidence แล้วผลเปลี่ยน,
+วิดีโอ 30 เฟรม (ไฟล์ VP9 `.webm` ที่เล่นในเบราว์เซอร์ได้) และแท็บกล้องแสดงผล
+**ยังไม่ได้ทดสอบ:** `best.pt` 110 คลาสของกลุ่ม, ถ่ายจากกล้องจริง และการ deploy บน Streamlit Community Cloud
 
 ข้อจำกัดของต้นแบบ: วิดีโอประมวลผลแบบอัปโหลดทั้งไฟล์ (ยังไม่ใช่สตรีมสด), ไม่มีการ track วัตถุข้ามเฟรม
 จำนวนสินค้าในวิดีโอจึงรายงานเป็นจำนวนมากสุดที่เห็นในเฟรมเดียว และโมเดลรู้จักแค่ 110 คลาสที่เทรน
@@ -572,7 +623,8 @@ retail-shelf-detection/
 ├── weights/                     # best.pt ของแต่ละโมเดลสำหรับ prototype (weights/<model>.pt)
 ├── docs/slides_outline.md       # โครงสไลด์และบทพูดสำหรับนำเสนอ 5 นาที
 ├── requirements.txt             # เทรน + ประเมิน
-├── requirements-app.txt         # prototype
+├── requirements-app.txt         # prototype (รันในเครื่อง)
+├── app/requirements.txt, packages.txt  # สำหรับ deploy บน Streamlit Community Cloud
 ├── .env.example                 # template ของ API key (.env ไม่ถูก commit)
 └── .gitignore                   # datasets/, runs/, *.pt (ยกเว้น weights/), .env
 ```

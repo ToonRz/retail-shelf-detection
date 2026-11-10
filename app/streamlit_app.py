@@ -17,8 +17,8 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from infer import (DECISION_CONF, MODELS, NMS_IOU, annotate_video, find_weights,  # noqa: E402
-                   load_model, predict_image, summarize)
+from infer import (DECISION_CONF, MODELS, N_CLASSES, NMS_IOU, annotate_video,  # noqa: E402
+                   find_weights, load_model, predict_image, summarize, weights_url)
 
 TMP = Path(tempfile.gettempdir()) / "retail-shelf-detection"
 TMP.mkdir(exist_ok=True)
@@ -26,6 +26,13 @@ MODEL_NOTES = {"yolov8n": "เล็กและเร็ว (3.2M parameters)",
 MIME = {".mp4": "video/mp4", ".webm": "video/webm"}
 
 st.set_page_config(page_title="Retail product detection", page_icon="🛒", layout="wide")
+
+
+@st.cache_data(show_spinner=False, ttl=600)
+def get_weights(model: str):
+    """Cached so the release is not re-requested on every rerun; ttl so a release
+    created after the app started is picked up within 10 minutes."""
+    return find_weights(model, ROOT)
 
 
 @st.cache_resource(show_spinner="กำลังโหลดโมเดล…")
@@ -69,7 +76,8 @@ with st.sidebar:
                      help="แสดงเฉพาะกล่องที่ confidence ไม่ต่ำกว่าค่านี้ (รายงานใช้ 0.25)")
     iou = st.slider("NMS IoU", 0.30, 0.90, NMS_IOU, 0.05,
                     help="กล่องที่ทับกันเกินค่านี้จะถูกรวมเป็นกล่องเดียว")
-    weights = find_weights(name, ROOT)
+    with st.spinner("กำลังหา/ดาวน์โหลดโมเดลที่เทรนไว้…"):
+        weights = get_weights(name)
     custom = st.file_uploader("ใช้ไฟล์ weights อื่น (.pt)", type=["pt"],
                               help="เช่น best.pt จาก runs/detect/<model>/weights/ ใน Google Drive")
     if custom is not None:
@@ -79,12 +87,15 @@ st.title("🛒 Retail product detection")
 st.caption("ตรวจจับและจำแนกสินค้าร้านค้าปลีก 110 คลาส (dataset Sell Products – O2O Minimart) ด้วย YOLOv8")
 
 if weights is None:
-    st.error(f"ยังไม่มีไฟล์ weights ของ **{name}**")
+    st.error(f"ยังไม่มีไฟล์โมเดลที่เทรนแล้วของ **{name}**")
     st.markdown(
-        f"เลือกทางใดทางหนึ่ง\n"
-        f"1. copy `best.pt` จาก `MyDrive/retail-shelf-detection/runs/detect/{name}/weights/` "
-        f"มาไว้ที่ `weights/{name}.pt` แล้วกด Rerun\n"
-        f"2. อัปโหลดไฟล์ `.pt` ในแถบด้านซ้าย")
+        f"แอปมองหาโมเดลตามลำดับนี้ (เลือกทางใดทางหนึ่ง)\n"
+        f"1. `weights/{name}.pt` ในเครื่องที่รันแอป: copy `best.pt` จาก "
+        f"`MyDrive/retail-shelf-detection/runs/detect/{name}/weights/` มาเปลี่ยนชื่อเป็นไฟล์นี้\n"
+        f"2. `runs/detect/{name}/weights/best.pt` (โฟลเดอร์ที่ notebook เทรนไว้)\n"
+        f"3. ดาวน์โหลดอัตโนมัติจาก `{weights_url(name)}`: สร้าง GitHub Release ชื่อ tag `weights-v1` "
+        f"แล้วแนบไฟล์ `{name}.pt`\n"
+        f"4. อัปโหลดไฟล์ `.pt` ในแถบด้านซ้าย (ใช้ได้เฉพาะครั้งนั้น)")
     st.stop()
 
 try:
@@ -96,6 +107,9 @@ except Exception as e:  # corrupt / non-YOLO file
 with st.sidebar:
     st.success(f"weights: `{custom.name if custom else weights.relative_to(ROOT)}`\n\n"
                f"{len(model.names)} คลาส")
+    if len(model.names) != N_CLASSES:
+        st.warning(f"weights นี้มี {len(model.names)} คลาส ไม่ใช่ {N_CLASSES} คลาสของโมเดลที่เทรนบน "
+                   "dataset Sell Products ผลที่ได้จะไม่ใช่ชื่อสินค้า")
     with st.expander("รายชื่อคลาสที่โมเดลรู้จัก"):
         st.write(", ".join(model.names.values()))
 
