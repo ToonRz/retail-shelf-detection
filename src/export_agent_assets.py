@@ -80,7 +80,9 @@ def make_fixtures(onnx_path: Path, labels: list[str], images: Path, out: Path, n
     first = Image.open(picked[0]).convert("RGB")
     crop = first.crop((0, 0, int(first.width * 0.75), first.height))
     crop_name = f"crop_{picked[0].stem}.jpg"
-    crop.save(out / crop_name, quality=95)
+    # 4:4:4 so the agent's test decoder (jpeg-js) and libjpeg agree to +-3 levels; with 4:2:0 their
+    # chroma upsampling differs by up to ~50 levels, enough to move borderline confidences past 0.02.
+    crop.save(out / crop_name, quality=95, subsampling=0)
 
     model = YOLO(str(onnx_path), task="detect")
     expected = []
