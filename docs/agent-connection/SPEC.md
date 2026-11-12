@@ -65,6 +65,7 @@ Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟ�
 |---|---|
 | `shelf-agent.js` | ES module, export `load` (§5) |
 | `model.onnx`, `labels.json` | จาก model release ตาม `model.lock.json` |
+| `shelf-model.onnx`, `shelf-labels.json` | **เฉพาะสาย `v0.3.x` ขึ้นไป:** shelf model 1 คลาส `product` ตาม `model.shelf.lock.json` (ดู `shelfModel` ด้านล่าง) |
 | `ort-wasm-*.wasm`, `ort-wasm-*.mjs` | onnxruntime-web ที่ pin ใน package-lock ไม่พึ่ง CDN (งาน A1 เลือกชุดที่ใช้จริง) |
 | `manifest.json` | ด้านล่าง |
 | `SHA256SUMS` | ทุกไฟล์รวม `manifest.json` รูปแบบ `sha256sum -c` |
@@ -79,6 +80,18 @@ Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟ�
   "files": { "labels.json": "…", "model.onnx": "…", "shelf-agent.js": "…", "ort-wasm-simd-threaded.wasm": "…" }
 }
 ```
+
+`shelfModel` (ไม่บังคับ, มีตั้งแต่ `v0.3.0`): รูปแบบเดียวกับ `model` ทุก field เช่น
+`{ "file": "shelf-model.onnx", "labels": "shelf-labels.json", "name": "shelf_1class", "dataset": "SKU-110K tiles", "classes": 1, … }`
+และไฟล์ทั้งสองต้องอยู่ใน `files` ด้วย · เว็บที่ไม่รู้จัก field นี้ใช้ release ได้ตามเดิม (เพิ่มแบบเข้ากันได้ จึงเป็น minor ไม่เปลี่ยน `contract`)
+
+สายของ release:
+
+| สาย | model | เว็บ pin ที่ |
+|---|---|---|
+| `v0.1.x` | `model` = 110 คลาส (sell-products v3) | — (เดิม `agent.version`) |
+| `v0.2.x` | `model` = shelf 1 คลาส `product` | `agent-shelf.version` (หน้าเฝ้าชั้นวาง) |
+| `v0.3.x` | `model` = 110 คลาส + `shelfModel` = shelf 1 คลาส | `agent.version` (หน้าตรวจจับ) |
 
 กฎของเวอร์ชัน:
 - **patch** (`v0.1.0 → v0.1.1`) = แก้บั๊ก ไม่เปลี่ยน API หรือ model
@@ -105,10 +118,15 @@ agent.dispose()
 2. `contract` ไม่ตรง → `contract_mismatch` · `version` ≠ `expectedVersion` → `version_mismatch`
 3. ดาวน์โหลด model (รายงาน `onProgress`) แล้ว sha256 ≠ `manifest.model.sha256` → `model_sha256_mismatch`
 4. `labels.json` ยาวไม่เท่า `classes` → `labels_mismatch`
+   - ถ้ามี `shelfModel` ทำข้อ 3–4 กับ `shelfModel` ด้วย (หลัง `model`) · `onProgress(loaded, total)` นับรวมทั้งสองไฟล์ และ `total` คงที่ตลอดการโหลด (ผลรวม Content-Length, หรือ `null` ถ้าไม่รู้)
 5. สร้าง session: ใช้ `webgpu` ถ้าขอและเครื่องรองรับ ไม่งั้นใช้ `wasm` ถ้าใช้ไม่ได้ทั้งคู่ → `backend_unavailable`
 
 `DetectResult = { version, model_sha256, backend, latency_ms, width, height, boxes: [{ cls, classId, conf, xyxy }] }`
 `xyxy` เป็น pixel ของรูปต้นฉบับ เรียงตาม `conf` จากมากไปน้อย ค่าตั้งต้น conf / iou / max_det มาจาก manifest
+
+ถ้ามี `shelfModel` (`v0.3.x`) `detect()` รันทั้งสอง model บนรูปเดียวกันแล้วรวมผล (`mergeBoxes` ใน `retail-shelf-agent/src/postprocess.ts`):
+เก็บกล่องของ `model` ทุกกล่อง แล้วเพิ่มกล่องของ `shelfModel` ที่ไม่ซ้อนกับกล่องที่เก็บไว้แล้ว (IoU ≤ 0.45 และส่วนที่ทับ < 70% ของกล่องที่เล็กกว่า)
+กล่องที่เพิ่มมามี `cls` = `"product"` และ `classId` = `model.classes` + classId ของ shelf (= 110) · `model_sha256` ยังเป็นของ `model` · ใช้เวลาราว 2 เท่าของการรัน model เดียว
 
 ## 6. Inference (ต้องให้ผลเท่ากับ Ultralytics)
 
@@ -139,6 +157,7 @@ tensor = RGB / 255, NCHW float32 [1,3,640,640]
 ## 7. Pin และ bump (retail-shelf-web)
 
 - `agent.version` บรรทัดเดียว: `mock` หรือ `vX.Y.Z` ค่าอื่นทำให้ build ล้ม · `mock` = ใช้ `src/mockAgent.ts`
+- `agent-shelf.version` กติกาเดียวกัน สำหรับหน้าเฝ้าชั้นวาง (`#watch`, สาย `v0.2.x`) · `make bump-agent` ขยับแค่ `agent.version`
 - `make fetch-agent-release`: ดาวน์โหลด release ตาม pin ลง `public/agent/<v>/` (ไฟล์ release **ไม่ commit**) แล้วตรวจ
   - `SHA256SUMS` ต้องตรงทุกไฟล์
   - ต้องมีไฟล์ครบตามที่ `manifest.files` บอก
