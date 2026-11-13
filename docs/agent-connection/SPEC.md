@@ -91,7 +91,7 @@ Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟ�
 |---|---|---|
 | `v0.1.x` | `model` = 110 คลาส (sell-products v3) | — (เดิม `agent.version`) |
 | `v0.2.x` | `model` = shelf 1 คลาส `product` | `agent-shelf.version` (หน้าเฝ้าชั้นวาง) |
-| `v0.3.x` | `model` = 110 คลาส + `shelfModel` = shelf 1 คลาส | `agent.version` (หน้าตรวจจับ) |
+| `v0.3.x` | `model` = 110 คลาส + `shelfModel` = shelf 1 คลาส | `agent.version` (หน้าตรวจจับ) + `agent-shelf.version` (หน้าเฝ้าชั้นวาง: ตอนเฝ้าใช้ `shelfOnly`, ปุ่มหาช่องอัตโนมัติใช้ทั้งสอง model) |
 
 กฎของเวอร์ชัน:
 - **patch** (`v0.1.0 → v0.1.1`) = แก้บั๊ก ไม่เปลี่ยน API หรือ model
@@ -157,7 +157,7 @@ tensor = RGB / 255, NCHW float32 [1,3,640,640]
 ## 7. Pin และ bump (retail-shelf-web)
 
 - `agent.version` บรรทัดเดียว: `mock` หรือ `vX.Y.Z` ค่าอื่นทำให้ build ล้ม · `mock` = ใช้ `src/mockAgent.ts`
-- `agent-shelf.version` กติกาเดียวกัน สำหรับหน้าเฝ้าชั้นวาง (`#watch`, สาย `v0.2.x`) · `make bump-agent` ขยับแค่ `agent.version`
+- `agent-shelf.version` กติกาเดียวกัน สำหรับหน้าเฝ้าชั้นวาง (`#watch`, เดิมสาย `v0.2.x` ตอนนี้ `v0.3.x` ซึ่งปุ่มหาช่องอัตโนมัติต้องใช้) · `make bump-agent` ขยับแค่ `agent.version`
 - `make fetch-agent-release`: ดาวน์โหลด release ตาม pin ลง `public/agent/<v>/` (ไฟล์ release **ไม่ commit**) แล้วตรวจ
   - `SHA256SUMS` ต้องตรงทุกไฟล์
   - ต้องมีไฟล์ครบตามที่ `manifest.files` บอก
