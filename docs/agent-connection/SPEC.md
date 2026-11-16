@@ -1,10 +1,10 @@
 # Spec: Shelf Agent ↔ Web (รัน model ใน browser)
 
-สถานะ: **ตกลงแล้ว** (จาก [mock/agent-connection.html](../../mock/agent-connection.html)) · งานแบ่งไว้ใน [TASKS.md](TASKS.md)
+สถานะ: **ใช้งานจริงแล้ว** · agent release ล่าสุด `v0.3.2` · เว็บ pin `v0.3.2` ทั้ง `agent.version` และ `agent-shelf.version` · หน้าตาตั้งต้นมาจาก [mock/agent-connection.html](../../mock/agent-connection.html)
 
 ## 1. เป้าหมาย
 
-เอา YOLOv8n ที่เทรนใน repo นี้ (110 คลาส) ไปให้คนใช้ผ่านเว็บ โดย
+เอา YOLOv8n ที่เทรนใน repo นี้ (110 คลาส) และ shelf model 1 คลาส `product` (SKU-110K, README ข้อ 8.3) ไปให้คนใช้ผ่านเว็บ โดย
 
 - **ฟรี 100%** ไม่มี server: เว็บเป็นไฟล์ static บน GitHub Pages ส่วน model รันในเครื่องผู้ใช้ด้วย onnxruntime-web
 - แยก agent ออกเป็น repo ของตัวเอง ออก release เอง แล้วเว็บ **pin เวอร์ชัน** และ **bump** มาใช้ แบบเดียวกับ zcrX ↔ zcrAgentX
@@ -16,9 +16,9 @@
 
 | Repo | หน้าที่ | ผลลัพธ์ |
 |---|---|---|
-| [retail-shelf-detection](https://github.com/ToonRz/retail-shelf-detection) (repo นี้) | เทรน / ประเมิน / **export** | `model.onnx`, `labels.json`, `model.json` + fixture (ขึ้นเป็น release `model-yolov8n-v3` ของ agent) · release `weights-v1` (best.pt) |
-| [retail-shelf-agent](https://github.com/ToonRz/retail-shelf-agent) | library JS: โหลด model, ตรวจ sha256, preprocess → run → NMS | release `vX.Y.Z` (§4) |
-| [retail-shelf-web](https://github.com/ToonRz/retail-shelf-web) | หน้าเว็บ static, pin `agent.version` | GitHub Pages |
+| [retail-shelf-detection](https://github.com/ToonRz/retail-shelf-detection) (repo นี้) | เทรน / ประเมิน / **export** | `model.onnx`, `labels.json`, `model.json` + fixture (ขึ้นเป็น release `model-yolov8n-v3` ของ agent) · shelf model จาก `notebooks/train_shelf_1class.ipynb` (release `model-shelf-1class-v2` ของ agent) · release `weights-v1` (best.pt) |
+| [retail-shelf-agent](https://github.com/ToonRz/retail-shelf-agent) | library JS: โหลด model, ตรวจ sha256, preprocess → run → NMS → รวมผลสอง model | release `vX.Y.Z` (§4) |
+| [retail-shelf-web](https://github.com/ToonRz/retail-shelf-web) | หน้าเว็บ static (หน้าตรวจจับ + หน้าเฝ้าชั้นวาง `#watch`), pin `agent.version` + `agent-shelf.version` | GitHub Pages |
 
 ```
 BUILD:   detection --export--> model release --model.lock.json--> agent --tag vX.Y.Z--> agent release
@@ -57,6 +57,9 @@ python src/export_agent_assets.py --images datasets/sell-products/test/images --
 
 `npm run fetch-model` ดาวน์โหลดและปฏิเสธถ้า sha256 ไม่ตรง · ตอนนี้ lock ชี้ไปที่ release `model-yolov8n-v3` (110 คลาส) · release `dev-coco-model` (COCO 80 คลาส) ยังเก็บไว้สำหรับ dev
 
+**Shelf model:** ขั้นที่ 5 ของ `notebooks/train_shelf_1class.ipynb` export `model.onnx` + `labels.json` + `model.json` (1 คลาส `product`, output `[1,5,8400]`) ขึ้นเป็น release `model-shelf-1class-v2` ของ agent แล้ว agent อ้างถึงด้วย `model.shelf.lock.json` (`npm run fetch-model:shelf`)
+ไม่สร้าง fixture จากรูป SKU-110K เพราะ licence ห้ามแจกจ่ายรูป · fixture `shelf-v1` ของ agent ใช้รูป Sell Products (CC BY) + เฟรมจากวิดีโอชั้นวางจำลองแทน
+
 ## 4. Agent release (สัญญาของ release)
 
 Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟล์แบบ **flat** (release asset ไม่มีโฟลเดอร์) สร้างด้วย `scripts/package-release.mjs`:
@@ -66,7 +69,7 @@ Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟ�
 | `shelf-agent.js` | ES module, export `load` (§5) |
 | `model.onnx`, `labels.json` | จาก model release ตาม `model.lock.json` |
 | `shelf-model.onnx`, `shelf-labels.json` | **เฉพาะสาย `v0.3.x` ขึ้นไป:** shelf model 1 คลาส `product` ตาม `model.shelf.lock.json` (ดู `shelfModel` ด้านล่าง) |
-| `ort-wasm-*.wasm`, `ort-wasm-*.mjs` | onnxruntime-web ที่ pin ใน package-lock ไม่พึ่ง CDN (งาน A1 เลือกชุดที่ใช้จริง) |
+| `ort-wasm-simd-threaded.jsep.wasm`, `.mjs` | onnxruntime-web ที่ pin ใน package-lock ไม่พึ่ง CDN · ส่งชุด `jsep` ชุดเดียวซึ่งรันได้ทั้ง WebGPU และ WASM (release `v0.3.2` รวม ~56 MB) |
 | `manifest.json` | ด้านล่าง |
 | `SHA256SUMS` | ทุกไฟล์รวม `manifest.json` รูปแบบ `sha256sum -c` |
 
@@ -107,7 +110,7 @@ Tag `vX.Y.Z` บน retail-shelf-agent → GitHub Release ที่มีไฟ�
 ```ts
 load({ baseUrl, expectedVersion, backend?: "webgpu" | "wasm", onProgress? }): Promise<Agent>
 agent.detect(image: ImageBitmap | ImageData | HTMLImageElement | HTMLCanvasElement,
-             { conf?, iou?, maxDet? }): Promise<DetectResult>
+             { conf?, iou?, maxDet?, shelfOnly? }): Promise<DetectResult>
 agent.backend      // ที่ใช้จริงหลัง fallback
 agent.dispose()
 ```
@@ -127,6 +130,9 @@ agent.dispose()
 ถ้ามี `shelfModel` (`v0.3.x`) `detect()` รันทั้งสอง model บนรูปเดียวกันแล้วรวมผล (`mergeBoxes` ใน `retail-shelf-agent/src/postprocess.ts`):
 เก็บกล่องของ `model` ทุกกล่อง แล้วเพิ่มกล่องของ `shelfModel` ที่ไม่ซ้อนกับกล่องที่เก็บไว้แล้ว (IoU ≤ 0.45 และส่วนที่ทับ < 70% ของกล่องที่เล็กกว่า)
 กล่องที่เพิ่มมามี `cls` = `"product"` และ `classId` = `model.classes` + classId ของ shelf (= 110) · `model_sha256` ยังเป็นของ `model` · ใช้เวลาราว 2 เท่าของการรัน model เดียว
+
+`shelfOnly: true` (ตั้งแต่ `v0.3.2`): รันแค่ `shelfModel` ได้แต่กล่อง `product` (classId 110) เร็วเท่ารัน model เดียว · release ที่ไม่มี `shelfModel` ไม่สนตัวเลือกนี้ · เพิ่มแบบเข้ากันได้ `contract` จึงยังเป็น `shelf-agent-js/1`
+หน้าเฝ้าชั้นวางส่ง `shelfOnly` ตอนเฝ้าทุกช่อง และเรียกแบบปกติ (ทั้งสอง model) ตอนหาช่องอัตโนมัติเพื่อเอาชื่อสินค้า
 
 ## 6. Inference (ต้องให้ผลเท่ากับ Ultralytics)
 
@@ -193,6 +199,8 @@ URL: `https://toonrz.github.io/retail-shelf-web/` (Vite `base` = `/retail-shelf-
 
 ## 10. เรื่องที่ยังเปิดอยู่
 
-- ขนาด release: ort ให้ wasm มา 4 แบบ (14–28 MB) ถ้ารวมทุกแบบ release ใหญ่ ~104 MB → งาน A1 เลือกเฉพาะที่ใช้ แล้วแก้ filter ใน `package-release.mjs`
-- License: Ultralytics YOLOv8 เป็น AGPL-3.0 และ dataset เป็น CC BY 4.0 → ใส่ที่มาในหน้า About ของเว็บ (งาน B4)
-- เครื่องที่ไม่มี WebGPU จะช้า → ต้องวัดบนเครื่องที่จะใช้พรีเซนต์จริง (งาน A5)
+- ยังไม่ได้ทดสอบบน Firefox, Safari บน Mac และ Chrome บน Android (ทดสอบแล้ว: Chromium ทั้ง WebGPU / WASM, Chrome + RTX 4060, Safari บน iPhone 17 Pro)
+- CI ของ agent ทดสอบ parity บน Node อย่างเดียว การทดสอบใน Chromium ยังทำด้วยมือ
+- GitHub Pages ไม่ส่ง header cross-origin isolation จึงใช้ WASM แบบ multi-thread ไม่ได้ เครื่องที่ไม่มี WebGPU จึงช้า
+
+ปิดแล้ว: ขนาด release (ส่ง ort ชุด `jsep` ชุดเดียว), ที่มาของ license (หน้า About ของเว็บ), วัดความเร็วบนเครื่องจริง (README ข้อ 8.1.3)

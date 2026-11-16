@@ -9,7 +9,7 @@
 
 วิธีได้ไฟล์มา (เลือกทางใดทางหนึ่ง)
 
-0. ไม่ต้องทำอะไร ถ้ามี GitHub Release `weights-v1` ที่แนบ `yolov8n.pt` / `yolov8s.pt` ไว้แล้ว
+0. ไม่ต้องทำอะไร: GitHub Release [`weights-v1`](https://github.com/ToonRz/retail-shelf-detection/releases/tag/weights-v1) มี `yolov8n.pt` / `yolov8s.pt` แล้ว
    แอปจะดาวน์โหลดมาไว้ในโฟลเดอร์นี้เองตอนเปิดครั้งแรก (README ข้อ 8.2)
 
 1. ดาวน์โหลด `best.pt` ของแต่ละโมเดลจาก Google Drive แล้วเปลี่ยนชื่อตามตารางมาวางในโฟลเดอร์นี้
